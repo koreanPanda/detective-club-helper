@@ -14,25 +14,14 @@
       color: #111;
       min-height: 100vh;
       display: flex;
-      align-items: stretch;
       justify-content: center;
     }
-    .app {
-      width: min(560px, 100%);
-      padding: var(--pad);
-      padding-bottom: calc(var(--pad) + env(safe-area-inset-bottom));
-    }
-    .card {
-      background: #fff;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: var(--pad);
-      margin: 10px 0;
-    }
+    .app { width: min(620px, 100%); padding: var(--pad); padding-bottom: calc(var(--pad) + env(safe-area-inset-bottom)); }
+    .card { background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); padding:var(--pad); margin:10px 0; }
     h1 { font-size: 22px; margin: 0 0 8px; }
     h2 { font-size: 18px; margin: 0 0 8px; }
     p { margin: 8px 0; line-height: 1.45; color: #333; }
-    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
     label { font-size: 13px; color: #444; display: block; margin: 12px 0 6px; }
     input, select {
       width: 100%;
@@ -43,86 +32,105 @@
       outline: none;
       background: #fff;
     }
-    input:focus, select:focus { border-color: #7aa7ff; box-shadow: 0 0 0 3px rgba(122,167,255,.25); }
+    input:focus, select:focus { border-color:#7aa7ff; box-shadow:0 0 0 3px rgba(122,167,255,.25); }
     .btn {
       width: 100%;
       padding: 14px 14px;
       border: 0;
       border-radius: 14px;
       font-size: 16px;
-      font-weight: 700;
+      font-weight: 800;
       background: #111;
       color: #fff;
       cursor: pointer;
       margin-top: 12px;
     }
-    .btn.secondary { background: #e9ecf6; color: #111; font-weight: 700; }
-    .btn.danger { background: #d62828; }
+    .btn.secondary { background:#e9ecf6; color:#111; }
+    .btn.danger { background:#d62828; }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
     .btn:active { transform: translateY(1px); }
-    .muted { color: #666; font-size: 13px; }
+    .muted { color:#666; font-size: 13px; }
     .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      background: #f0f2f9;
-      color: #222;
-      font-size: 13px;
-      font-weight: 600;
-      margin-top: 6px;
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 8px 10px; border-radius:999px;
+      background:#f0f2f9; color:#222; font-size:13px; font-weight:700;
     }
-    .divider { height: 1px; background: #eef0f6; margin: 14px 0; }
-    .big {
-      font-size: 22px;
-      font-weight: 800;
-      line-height: 1.25;
-      margin: 6px 0 10px;
-    }
-    .center { text-align: center; }
-    .progressWrap { height: 10px; background: #eef0f6; border-radius: 999px; overflow: hidden; }
-    .progressBar { height: 10px; width: 0%; background: #111; transition: width 0.05s linear; }
-    .pressArea {
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
+    .divider { height:1px; background:#eef0f6; margin:14px 0; }
+    .big { font-size: 22px; font-weight: 900; line-height: 1.25; margin: 6px 0 10px; }
+    .center { text-align:center; }
+    .progressWrap { height: 10px; background:#eef0f6; border-radius:999px; overflow:hidden; }
+    .progressBar { height: 10px; width: 0%; background:#111; transition: width 0.05s linear; }
+    .pressArea{
+      user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
       touch-action: manipulation;
-      border: 2px dashed #d8dbe6;
-      border-radius: 18px;
-      padding: 18px;
-      margin-top: 12px;
-      background: #fbfcff;
+      border:2px dashed #d8dbe6;
+      border-radius:18px;
+      padding:18px;
+      margin-top:12px;
+      background:#fbfcff;
     }
-    .pressHint { font-size: 14px; color: #333; }
-    .revealBox {
-      border-radius: 18px;
-      padding: 18px;
-      background: #111;
-      color: #fff;
-      margin-top: 12px;
-      min-height: 86px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      font-size: 18px;
-      font-weight: 800;
+    .revealBox{
+      border-radius:18px;
+      padding:18px;
+      background:#111;
+      color:#fff;
+      margin-top:12px;
+      min-height:86px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      font-size:18px;
+      font-weight:900;
+      opacity:.10;
     }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px 6px; border-bottom: 1px solid #eef0f6; text-align: left; }
-    th { font-size: 13px; color: #666; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding: 10px 6px; border-bottom: 1px solid #eef0f6; text-align:left; }
+    th { font-size: 13px; color:#666; }
     td { font-size: 15px; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
     @media (max-width: 420px) { .grid2 { grid-template-columns: 1fr; } }
-    .notice {
-      font-size: 12px;
-      color: #666;
-      margin-top: 10px;
-      background: #f5f7ff;
-      border: 1px solid #e1e7ff;
-      padding: 10px 12px;
-      border-radius: 12px;
+    .notice{
+      font-size: 12px; color:#666; margin-top:10px;
+      background:#f5f7ff; border:1px solid #e1e7ff;
+      padding:10px 12px; border-radius:12px;
     }
+
+    /* Voting tokens UI */
+    .tiles { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; margin-top:12px; }
+    @media (max-width: 420px) { .tiles { grid-template-columns: 1fr; } }
+    .tile{
+      border:1px solid #e7eaf4;
+      border-radius:16px;
+      padding:14px;
+      background:#fff;
+      box-shadow: 0 6px 18px rgba(0,0,0,.05);
+      cursor:pointer;
+      user-select:none;
+      position:relative;
+      transition: transform .05s ease;
+    }
+    .tile:active { transform: translateY(1px); }
+    .tileTitle { font-weight:900; font-size:16px; margin:0; }
+    .tileSub { font-size:12px; color:#666; margin-top:4px; }
+    .tokenStack { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .token{
+      width: 12px; height: 12px; border-radius:999px; background:#111;
+      box-shadow: 0 2px 6px rgba(0,0,0,.2);
+    }
+    .badge{
+      position:absolute; top:10px; right:10px;
+      background:#f0f2f9; border:1px solid #e2e6f2;
+      padding:6px 8px; border-radius:999px; font-weight:900; font-size:12px;
+    }
+    .chipRow { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; justify-content:center; }
+    .chip{
+      background:#f0f2f9; border:1px solid #e2e6f2;
+      padding:7px 10px; border-radius:999px; font-size:13px; font-weight:800;
+      cursor:pointer;
+      user-select:none;
+    }
+    .chip:active { transform: translateY(1px); }
   </style>
 </head>
 <body>
@@ -133,36 +141,42 @@
   // -----------------------------
   // State
   // -----------------------------
-  const STORAGE_KEY = "dc_helper_v1";
+  const STORAGE_KEY = "dc_helper_v2";
   const defaultState = {
     N: 6,
-    totalRounds: 0, // 0 = 무제한
+    totalRounds: 0,      // 0 = 무제한
     round: 1,
-    scores: {}, // {1:0,2:0,...}
     phase: "HOME",
+
+    players: [],         // [{id, name, score}]
     // round-specific
-    hostIndex: 1,
-    liarIndex: 2,
+    hostId: 1,
+    liarId: 2,
     keyword: "",
+
     revealOrder: [],
     cursor: 0,
-    revealed: {}, // {playerId:true}
+    revealed: {},        // {playerId:true}
     // voting
-    guesses: {}, // {playerId: guessedPlayerId}
+    voteOrder: [],
+    voteCursor: 0,
+    votes: {},           // {voterId: targetId} (visible log)
+    accusations: {},     // {targetId: count}
+    _lastAccusationCount: 0,
   };
 
   let state = load() || initDefault();
 
   function initDefault() {
     const s = structuredClone(defaultState);
-    s.scores = {};
-    for (let i=1;i<=s.N;i++) s.scores[i]=0;
+    s.players = [];
+    for (let i = 1; i <= s.N; i++) s.players.push({ id: i, name: `Player ${i}`, score: 0 });
+    s.hostId = 1;
+    s.liarId = Math.min(2, s.N);
     return s;
   }
 
-  function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -180,7 +194,7 @@
 
   // Back navigation guard (lightweight)
   history.pushState({locked:true}, "");
-  window.addEventListener("popstate", (e) => {
+  window.addEventListener("popstate", () => {
     history.pushState({locked:true}, "");
     toast("뒤로가기는 비활성화되어 있어요. (치팅 방지)");
   });
@@ -202,63 +216,89 @@
     return Math.min(max, Math.max(min, n));
   }
 
-  function makeRevealOrder(N, hostIndex) {
+  function playerById(id) { return state.players.find(p => p.id === id); }
+  function pname(id) {
+    const p = playerById(id);
+    return p ? p.name : `${id}번`;
+  }
+  function pnameWithNo(id) {
+    const p = playerById(id);
+    return p ? `${p.name} (${id}번)` : `${id}번`;
+  }
+
+  function makeOrderExcluding(N, excludeId) {
     const arr = [];
-    for (let i=1;i<=N;i++) if (i !== hostIndex) arr.push(i);
+    for (let i=1; i<=N; i++) if (i !== excludeId) arr.push(i);
     return arr;
   }
 
-  function nextHostIndex(host, N) {
-    return (host % N) + 1;
-  }
-
-  function applyScoring() {
-    const { hostIndex, liarIndex, guesses, scores, N } = state;
-
-    // Count accusations (excluding host by design)
-    let accusationCount = 0;
-    for (const [pidStr, guessed] of Object.entries(guesses)) {
-      const pid = parseInt(pidStr, 10);
-      if (pid === hostIndex) continue;
-      if (guessed === liarIndex) accusationCount++;
-    }
-
-    // Everyone who guessed liar gets +3
-    for (const [pidStr, guessed] of Object.entries(guesses)) {
-      const pid = parseInt(pidStr, 10);
-      if (pid === hostIndex) continue;
-      if (guessed === liarIndex) state.scores[pid] = (state.scores[pid] || 0) + 3;
-    }
-
-    // If liar got <= 1 accusation: liar +5, host +4
-    if (accusationCount <= 1) {
-      state.scores[liarIndex] = (state.scores[liarIndex] || 0) + 5;
-      state.scores[hostIndex] = (state.scores[hostIndex] || 0) + 4;
-    }
-
-    state._lastAccusationCount = accusationCount;
-    save();
-  }
+  function nextHostId(host, N) { return (host % N) + 1; }
 
   function startRound() {
-    // Prepare round data
-    state.keyword = state.keyword?.trim() || "";
-    state.revealOrder = makeRevealOrder(state.N, state.hostIndex);
+    state.keyword = (state.keyword || "").trim();
+    state.revealOrder = makeOrderExcluding(state.N, state.hostId);
     state.cursor = 0;
     state.revealed = {};
-    state.guesses = {};
+    // voting reset
+    state.votes = {};
+    state.accusations = {};
+    state.voteOrder = [];
+    state.voteCursor = 0;
     save();
-    setPhase("REVEAL_WAIT");
+    setPhase("REVEAL");
   }
 
-  function finishRevealAndGoPlay() {
+  function finishReveal() {
     setPhase("PLAY_START");
   }
 
   function startVoting() {
-    state.guesses = {};
+    // voting is 공개. host 제외한 사람들만 투표 (룰)
+    state.voteOrder = makeOrderExcluding(state.N, state.hostId);
+    state.voteCursor = 0;
+    state.votes = {};
+    state.accusations = {};
     save();
-    setPhase("VOTING");
+    setPhase("VOTING_TOKENS");
+  }
+
+  function registerVote(voterId, targetId) {
+    // overwrite allowed: if voter already voted, remove old token then add new.
+    const prev = state.votes[voterId];
+    if (prev != null) {
+      state.accusations[prev] = Math.max(0, (state.accusations[prev] || 0) - 1);
+    }
+    state.votes[voterId] = targetId;
+    state.accusations[targetId] = (state.accusations[targetId] || 0) + 1;
+  }
+
+  function applyScoring() {
+    const hostId = state.hostId;
+    const liarId = state.liarId;
+
+    // accusationCount = number of voters who chose liar
+    const accusationCount = state.accusations[liarId] || 0;
+
+    // Everyone who voted liar gets +3 (host doesn't vote by construction)
+    for (const voterIdStr of Object.keys(state.votes)) {
+      const voterId = parseInt(voterIdStr, 10);
+      if (voterId === hostId) continue;
+      if (state.votes[voterId] === liarId) {
+        const p = playerById(voterId);
+        if (p) p.score += 3;
+      }
+    }
+
+    // If liar got <= 1 accusation: liar +5, host +4
+    if (accusationCount <= 1) {
+      const liar = playerById(liarId);
+      const host = playerById(hostId);
+      if (liar) liar.score += 5;
+      if (host) host.score += 4;
+    }
+
+    state._lastAccusationCount = accusationCount;
+    save();
   }
 
   function finishVoting() {
@@ -267,25 +307,39 @@
   }
 
   function nextRound() {
-    // Round increment + rotate host
     state.round += 1;
-    state.hostIndex = nextHostIndex(state.hostIndex, state.N);
+    state.hostId = nextHostId(state.hostId, state.N);
     state.keyword = "";
-    state.liarIndex = clampInt(state.liarIndex, 1, state.N, 1);
+    // reset round vars
     state.revealOrder = [];
     state.cursor = 0;
     state.revealed = {};
-    state.guesses = {};
+    state.votes = {};
+    state.accusations = {};
+    state.voteOrder = [];
+    state.voteCursor = 0;
     save();
     setPhase("ROUND_SETUP");
   }
 
-  function ensureScores() {
-    // Keep scores dict consistent if N changes
-    const N = state.N;
-    const next = {};
-    for (let i=1;i<=N;i++) next[i] = state.scores?.[i] ?? 0;
-    state.scores = next;
+  function ensurePlayersForN(newN) {
+    // Keep existing names/scores if possible
+    const prev = new Map(state.players.map(p => [p.id, p]));
+    const next = [];
+    for (let i=1;i<=newN;i++) {
+      const old = prev.get(i);
+      next.push({
+        id: i,
+        name: old?.name ?? `Player ${i}`,
+        score: old?.score ?? 0
+      });
+    }
+    state.players = next;
+    state.N = newN;
+    // clamp host/liar
+    if (state.hostId > newN) state.hostId = 1;
+    if (state.liarId > newN) state.liarId = Math.min(2, newN);
+    if (state.liarId === state.hostId) state.liarId = (state.hostId % newN) + 1;
   }
 
   // Tiny toast
@@ -315,13 +369,13 @@
   }
 
   // -----------------------------
-  // Long press logic (2s)
+  // Long press logic (2s) -> reveal stays (no need to hide again)
   // -----------------------------
-  function attachLongPress(container, onRevealActiveChange) {
+  function attachLongPressOnce(container, onCompleted) {
     let holding = false;
     let startedAt = 0;
     let raf = null;
-    let revealed = false;
+    let completed = false;
 
     const bar = container.querySelector(".progressBar");
 
@@ -331,20 +385,22 @@
       const p = Math.min(1, elapsed / 2000);
       bar.style.width = (p * 100).toFixed(1) + "%";
 
-      if (p >= 1 && !revealed) {
-        revealed = true;
-        onRevealActiveChange(true); // show secret while still holding
+      if (p >= 1 && !completed) {
+        completed = true;
+        holding = false;
+        if (raf) cancelAnimationFrame(raf);
+        onCompleted();
+      } else {
+        raf = requestAnimationFrame(update);
       }
-      raf = requestAnimationFrame(update);
     };
 
     const start = (e) => {
       e.preventDefault();
+      if (completed) return;
       if (holding) return;
       holding = true;
-      revealed = false;
       bar.style.width = "0%";
-      onRevealActiveChange(false);
       startedAt = performance.now();
       raf = requestAnimationFrame(update);
     };
@@ -354,9 +410,7 @@
       if (!holding) return;
       holding = false;
       if (raf) cancelAnimationFrame(raf);
-      // If revealed was active, stop showing secret immediately
-      onRevealActiveChange(false);
-      // keep progress bar as-is; UI will move to "confirmed" state outside
+      // keep progress where it stopped; user can try again
     };
 
     container.addEventListener("pointerdown", start, {passive:false});
@@ -369,16 +423,13 @@
   // Render
   // -----------------------------
   function render() {
-    ensureScores();
-
     switch (state.phase) {
       case "HOME": return renderHome();
       case "ROUND_SETUP": return renderRoundSetup();
-      case "REVEAL_WAIT": return renderRevealWait();
-      case "REVEAL_DONE": return renderRevealDone();
+      case "REVEAL": return renderReveal();
       case "PASS_NEXT": return renderPassNext();
       case "PLAY_START": return renderPlayStart();
-      case "VOTING": return renderVoting();
+      case "VOTING_TOKENS": return renderVotingTokens();
       case "RESULT": return renderResult();
       default:
         state.phase = "HOME"; save(); return renderHome();
@@ -389,14 +440,22 @@
     $app.innerHTML = `
       <div class="card">
         <h1>Detective Club Helper</h1>
-        <p class="muted">한 대의 폰으로 제시어/라이어 분배 + 투표 + 자동 점수</p>
+        <p class="muted">한 대의 폰으로 제시어/라이어 분배 + 공개 지목(토큰) + 자동 점수</p>
         <div class="divider"></div>
 
-        <label>참가자 수 (N)</label>
-        <input id="N" inputmode="numeric" value="${state.N}" />
+        <div class="grid2">
+          <div>
+            <label>참가자 수 (N)</label>
+            <input id="N" inputmode="numeric" value="${state.N}" />
+          </div>
+          <div>
+            <label>총 라운드 수 (0 = 무제한)</label>
+            <input id="R" inputmode="numeric" value="${state.totalRounds}" />
+          </div>
+        </div>
 
-        <label>총 라운드 수 (0 = 무제한)</label>
-        <input id="R" inputmode="numeric" value="${state.totalRounds}" />
+        <label>플레이어 이름</label>
+        <div id="nameList"></div>
 
         <button class="btn" id="start">설정 완료 → 라운드 1</button>
         <button class="btn secondary" id="reset">전체 초기화</button>
@@ -405,19 +464,59 @@
           iPhone에서는 화면 잠금이 걸리면 흐름이 끊길 수 있어요. 게임 중에는 자동 잠금을 꺼두면 편합니다.
         </div>
       </div>
+      ${renderScoreTableCard()}
     `;
 
+    const nameList = document.getElementById("nameList");
+
+    function renderNameInputs(n) {
+      let html = "";
+      for (let i=1;i<=n;i++) {
+        const p = state.players.find(x => x.id === i);
+        html += `
+          <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+            <div class="pill" style="min-width:72px; justify-content:center;">${i}번</div>
+            <input data-pid="${i}" value="${escapeHtml(p?.name ?? `Player ${i}`)}" placeholder="이름" />
+          </div>
+        `;
+      }
+      nameList.innerHTML = html;
+
+      nameList.querySelectorAll("input[data-pid]").forEach(inp => {
+        inp.addEventListener("input", (e) => {
+          const id = parseInt(e.target.getAttribute("data-pid"), 10);
+          const p = state.players.find(x => x.id === id);
+          if (p) p.name = e.target.value;
+          save();
+        });
+      });
+    }
+
+    renderNameInputs(state.N);
+
+    document.getElementById("N").addEventListener("input", (e) => {
+      const n = clampInt(e.target.value, 3, 20, state.N);
+      ensurePlayersForN(n);
+      save();
+      renderNameInputs(n);
+      // rerender score card too
+      document.querySelectorAll(".card")[1].outerHTML = renderScoreTableCard();
+    });
+
     document.getElementById("start").onclick = () => {
-      const N = clampInt(document.getElementById("N").value, 3, 20, 6);
+      const N = clampInt(document.getElementById("N").value, 3, 20, state.N);
       const R = clampInt(document.getElementById("R").value, 0, 50, 0);
-      state.N = N;
+      ensurePlayersForN(N);
+
       state.totalRounds = R;
       state.round = 1;
-      state.hostIndex = 1;
-      state.liarIndex = Math.min(2, N);
+      state.hostId = 1;
+      state.liarId = Math.min(2, state.N);
+      if (state.liarId === state.hostId) state.liarId = (state.hostId % state.N) + 1;
+
+      // reset scores (new game)
+      state.players = state.players.map(p => ({...p, score: 0, name: (p.name||"").trim() || `Player ${p.id}`}));
       state.keyword = "";
-      state.scores = {};
-      for (let i=1;i<=N;i++) state.scores[i]=0;
       save();
       setPhase("ROUND_SETUP");
     };
@@ -428,57 +527,64 @@
   }
 
   function renderRoundSetup() {
-    const options = Array.from({length: state.N}, (_,i)=>i+1)
-      .map(i => `<option value="${i}" ${i===state.hostIndex?'selected':''}>${i}번</option>`).join("");
+    const hostOptions = state.players.map(p =>
+      `<option value="${p.id}" ${p.id===state.hostId?'selected':''}>${escapeHtml(p.name)} (${p.id}번)</option>`
+    ).join("");
 
-    const liarOptions = Array.from({length: state.N}, (_,i)=>i+1)
-      .map(i => `<option value="${i}" ${i===state.liarIndex?'selected':''}>${i}번</option>`).join("");
+    const liarOptions = state.players
+      .filter(p => p.id !== state.hostId)
+      .map(p => `<option value="${p.id}" ${p.id===state.liarId?'selected':''}>${escapeHtml(p.name)} (${p.id}번)</option>`)
+      .join("");
 
     $app.innerHTML = `
       <div class="card">
-        <div class="row" style="justify-content:space-between;align-items:center;">
+        <div class="row">
           <h1>라운드 ${state.round}</h1>
-          <span class="pill">제시자: ${state.hostIndex}번</span>
+          <span class="pill">제시자: ${escapeHtml(pnameWithNo(state.hostId))}</span>
         </div>
         <p class="muted">제시자가 제시어와 라이어를 설정합니다.</p>
 
-        <label>제시자 번호</label>
-        <select id="host">${options}</select>
+        <label>제시자</label>
+        <select id="host">${hostOptions}</select>
 
-        <label>라이어 번호</label>
+        <label>라이어</label>
         <select id="liar">${liarOptions}</select>
 
         <label>제시어 (텍스트 1줄)</label>
         <input id="keyword" placeholder="예) 우주, 커피, 비 오는 날..." value="${escapeHtml(state.keyword||"")}" />
 
-        <button class="btn" id="go">리빌 시작</button>
+        <button class="btn" id="go">제시어 분배(리빌) 시작</button>
         <button class="btn secondary" id="score">점수표 보기</button>
         <button class="btn secondary" id="home">홈으로</button>
 
         <div class="notice">
-          리빌 시작 후에는 “라이어 번호”가 다시 보이지 않도록 뒤로가기를 막아두었습니다.
+          리빌 시작 후에는 라이어 정보가 다시 노출되지 않도록 뒤로가기를 막아두었습니다.
         </div>
       </div>
       ${renderScoreTableCard()}
     `;
 
     document.getElementById("host").onchange = (e) => {
-      state.hostIndex = clampInt(e.target.value, 1, state.N, 1);
-      save(); render();
+      state.hostId = clampInt(e.target.value, 1, state.N, 1);
+      if (state.liarId === state.hostId) state.liarId = (state.hostId % state.N) + 1;
+      save();
+      render();
     };
 
     document.getElementById("liar").onchange = (e) => {
-      state.liarIndex = clampInt(e.target.value, 1, state.N, 2);
-      save(); render();
+      state.liarId = clampInt(e.target.value, 1, state.N, 2);
+      if (state.liarId === state.hostId) {
+        toast("제시자와 라이어가 같을 수는 없어요.");
+        state.liarId = (state.hostId % state.N) + 1;
+      }
+      save();
+      render();
     };
 
     document.getElementById("go").onclick = () => {
       const keyword = document.getElementById("keyword").value.trim();
       if (!keyword) { toast("제시어를 입력해 주세요."); return; }
-      if (state.liarIndex === state.hostIndex) {
-        toast("제시자와 라이어가 같을 수는 없어요. 라이어 번호를 바꿔주세요.");
-        return;
-      }
+      if (state.liarId === state.hostId) { toast("라이어는 제시자가 될 수 없어요."); return; }
       state.keyword = keyword;
       save();
       startRound();
@@ -488,40 +594,37 @@
     document.getElementById("score").onclick = () => toast("아래 점수표를 확인하세요.");
   }
 
-  function renderRevealWait() {
+  function renderReveal() {
     const order = state.revealOrder || [];
     const total = order.length; // N-1
-    const currentPlayer = order[state.cursor];
+    if (state.cursor >= total) { finishReveal(); return; }
 
-    // If cursor finished
-    if (state.cursor >= total) {
-      finishRevealAndGoPlay();
-      return;
-    }
+    const currentId = order[state.cursor];
+    const currentName = pnameWithNo(currentId);
 
-    const already = !!state.revealed?.[currentPlayer];
+    const already = !!state.revealed?.[currentId];
+    const isLiar = currentId === state.liarId;
+    const secretText = isLiar
+      ? "당신은 라이어입니다. 제시어를 유추해보세요."
+      : `제시어는 “${state.keyword}” 입니다.`;
 
     $app.innerHTML = `
       <div class="card">
-        <div class="row" style="justify-content:space-between;align-items:center;">
+        <div class="row">
           <h1>제시어 확인</h1>
           <span class="pill">${state.cursor+1} / ${total}</span>
         </div>
-        <p class="big center">${currentPlayer}번 플레이어 차례</p>
+
+        <p class="big center">${escapeHtml(currentName)} 차례</p>
 
         <div class="pressArea" id="pressArea">
-          <p class="pressHint center">${already ? "이미 확인했습니다." : "2초간 꾹 눌러야 공개됩니다."}</p>
+          <p class="center pressHint">${already ? "이미 확인했습니다." : "2초간 꾹 눌러 공개하세요."}</p>
           <div class="progressWrap"><div class="progressBar"></div></div>
 
-          <div class="revealBox" id="revealBox" style="opacity:.08;">
-            (여기에 표시)
-          </div>
+          <div class="revealBox" id="revealBox">${already ? escapeHtml(secretText) : "(여기에 표시)"}</div>
         </div>
 
-        <button class="btn ${already ? "" : "secondary"}" id="confirm" ${already ? "" : "disabled"}>
-          ${already ? "다음 단계로" : "확인 완료 후 활성화됩니다"}
-        </button>
-
+        <button class="btn" id="confirm" ${already ? "" : "disabled"}>다음 참가자에게 넘기기</button>
         <button class="btn secondary" id="abort">라운드 설정으로 (리셋)</button>
       </div>
     `;
@@ -529,78 +632,23 @@
     const revealBox = document.getElementById("revealBox");
     const confirmBtn = document.getElementById("confirm");
 
-    let revealedOnce = already;
-
-    function showSecret(active) {
-      if (revealedOnce) {
-        // already confirmed -> do not show again
-        revealBox.style.opacity = ".08";
-        revealBox.textContent = "(확인 완료)";
-        return;
-      }
-
-      if (!active) {
-        revealBox.style.opacity = ".08";
-        revealBox.textContent = "(여기에 표시)";
-        return;
-      }
-
-      revealBox.style.opacity = "1";
-      if (currentPlayer === state.liarIndex) {
-        revealBox.textContent = "당신은 라이어입니다. 제시어를 유추해보세요.";
-      } else {
-        revealBox.textContent = `제시어는 “${state.keyword}” 입니다.`;
-      }
-    }
-
     if (!already) {
-      attachLongPress(document.getElementById("pressArea"), (active) => {
-        // When secret becomes active, it stays only while holding.
-        showSecret(active);
-        // When they release after having revealed at least once, mark confirmed.
-        if (!active) {
-          // If they had reached full 2s, revealBox would have been shown during hold.
-          // We detect "revealed" by checking if revealBox was fully visible recently is hard.
-          // Simpler: if progress bar reached 100% at least once -> we set revealedOnce in attachLongPress? Not exposed.
-          // Workaround: if revealBox opacity was set to 1 at any point, we can infer it.
-        }
-      });
-
-      // Infer revealed completion by watching progress width hitting 100%
-      const bar = document.querySelector(".progressBar");
-      const obs = new MutationObserver(() => {
-        if (revealedOnce) return;
-        if (bar.style.width && parseFloat(bar.style.width) >= 100) {
-          // Once bar reaches 100, user still needs to release; we wait a bit and then enable confirm after release.
-          // We enable confirm immediately after 100% to reduce friction, but secret still only shows while holding.
-          confirmBtn.disabled = false;
-          confirmBtn.className = "btn";
-        }
-      });
-      obs.observe(bar, { attributes: true, attributeFilter: ["style"] });
-
-      // Also, when user lifts finger, if confirm enabled, mark revealed
-      document.getElementById("pressArea").addEventListener("pointerup", () => {
-        if (!revealedOnce && !confirmBtn.disabled) {
-          revealedOnce = true;
-          state.revealed[currentPlayer] = true;
-          save();
-          revealBox.style.opacity = ".08";
-          revealBox.textContent = "(확인 완료)";
-        }
+      attachLongPressOnce(document.getElementById("pressArea"), () => {
+        // 2초 달성 -> reveal stays
+        state.revealed[currentId] = true;
+        save();
+        revealBox.style.opacity = "1";
+        revealBox.textContent = secretText;
+        confirmBtn.disabled = false;
+        toast("확인 완료!");
       });
     } else {
-      revealBox.style.opacity = ".08";
-      revealBox.textContent = "(확인 완료)";
+      revealBox.style.opacity = "1";
       confirmBtn.disabled = false;
-      confirmBtn.className = "btn";
     }
 
     confirmBtn.onclick = () => {
-      if (!state.revealed[currentPlayer]) {
-        toast("먼저 2초간 눌러 확인해 주세요.");
-        return;
-      }
+      if (!state.revealed[currentId]) { toast("먼저 2초간 눌러 확인해 주세요."); return; }
       setPhase("PASS_NEXT");
     };
 
@@ -609,7 +657,8 @@
         state.revealOrder = [];
         state.cursor = 0;
         state.revealed = {};
-        state.guesses = {};
+        state.votes = {};
+        state.accusations = {};
         save();
         setPhase("ROUND_SETUP");
       }
@@ -619,15 +668,15 @@
   function renderPassNext() {
     const order = state.revealOrder || [];
     const total = order.length;
-    const currentPlayer = order[state.cursor];
+    const currentId = order[state.cursor];
 
     $app.innerHTML = `
       <div class="card">
         <h1 class="center">다음 사람에게 넘기기</h1>
         <p class="center">이 화면 그대로 <b>다음 사용자에게 휴대폰을 넘겨주세요.</b></p>
-        <p class="muted center">현재 플레이어: ${currentPlayer}번 · 진행: ${state.cursor+1}/${total}</p>
+        <p class="muted center">방금 확인: ${escapeHtml(pnameWithNo(currentId))} · 진행: ${state.cursor+1}/${total}</p>
 
-        <button class="btn" id="next">다음 플레이어 시작</button>
+        <button class="btn" id="next">다음 참가자 시작</button>
         <button class="btn secondary" id="back">이전 화면</button>
       </div>
     `;
@@ -635,23 +684,21 @@
     document.getElementById("next").onclick = () => {
       state.cursor += 1;
       save();
-      setPhase("REVEAL_WAIT");
+      setPhase("REVEAL");
     };
-    document.getElementById("back").onclick = () => setPhase("REVEAL_WAIT");
-  }
-
-  function renderRevealDone() {
-    // not used in this flow; kept for extensibility
+    document.getElementById("back").onclick = () => setPhase("REVEAL");
   }
 
   function renderPlayStart() {
     $app.innerHTML = `
       <div class="card">
         <h1 class="center">게임을 시작합니다!</h1>
-        <p class="center">이제 오프라인에서 카드 2장씩 내려놓고, 마지막에 라이어 지목을 진행하세요.</p>
+        <p class="center">
+          오프라인에서 카드 2장씩 내려놓은 뒤,<br/>
+          <b>라이어 지목</b>을 진행하세요.
+        </p>
 
-        <button class="btn" id="vote">라이어 지목(투표) 입력</button>
-        <button class="btn secondary" id="score">점수표 보기</button>
+        <button class="btn" id="vote">라이어 지목 시작 (토큰)</button>
         <button class="btn secondary" id="setup">라운드 설정으로</button>
       </div>
       ${renderScoreTableCard()}
@@ -659,65 +706,104 @@
 
     document.getElementById("vote").onclick = () => startVoting();
     document.getElementById("setup").onclick = () => setPhase("ROUND_SETUP");
-    document.getElementById("score").onclick = () => toast("아래 점수표를 확인하세요.");
   }
 
-  function renderVoting() {
-    // voting order: everyone except host
-    const voters = [];
-    for (let i=1;i<=state.N;i++) if (i !== state.hostIndex) voters.push(i);
+  function renderVotingTokens() {
+    const voters = state.voteOrder || [];
+    const targets = state.players
+      .filter(p => p.id !== state.hostId) // 제시자 제외(선택지에서도 제외)
+      .map(p => p.id);
 
-    // cursor for voting stored separately? We'll reuse state.cursorV
-    if (state.cursorV == null) state.cursorV = 0;
-    const idx = state.cursorV;
-    const voter = voters[idx];
-
-    if (idx >= voters.length) {
-      // Done
-      delete state.cursorV;
-      save();
+    if (state.voteCursor >= voters.length) {
       finishVoting();
       return;
     }
 
-    const options = Array.from({length: state.N}, (_,i)=>i+1)
-      .filter(i => i !== state.hostIndex) // optional: host cannot be liar by rules, so hide
-      .map(i => `<option value="${i}">${i}번</option>`).join("");
+    const currentVoterId = voters[state.voteCursor];
+    const currentVoterName = pnameWithNo(currentVoterId);
+
+    const accusationCount = (id) => state.accusations?.[id] || 0;
+
+    const tilesHtml = targets.map(tid => {
+      const count = accusationCount(tid);
+      const tokens = Array.from({length: Math.min(count, 12)}, () => `<span class="token"></span>`).join("");
+      const more = count > 12 ? `<span class="muted" style="font-weight:900;">+${count-12}</span>` : "";
+      return `
+        <div class="tile" data-target="${tid}">
+          <div class="badge">${count}</div>
+          <div class="tileTitle">${escapeHtml(pname(tid))}</div>
+          <div class="tileSub">${tid}번</div>
+          <div class="tokenStack">${tokens}${more}</div>
+        </div>
+      `;
+    }).join("");
+
+    // 공개 로그(선택): 누가 누구 찍었는지 칩으로 보이게
+    const chips = Object.entries(state.votes)
+      .map(([voterStr, targetId]) => {
+        const v = parseInt(voterStr, 10);
+        return `<span class="chip">${escapeHtml(pname(v))} → ${escapeHtml(pname(targetId))}</span>`;
+      }).join("");
 
     $app.innerHTML = `
       <div class="card">
-        <div class="row" style="justify-content:space-between;align-items:center;">
-          <h1>라이어 지목</h1>
-          <span class="pill">${idx+1} / ${voters.length}</span>
+        <div class="row">
+          <h1>라이어 지목 (공개)</h1>
+          <span class="pill">${state.voteCursor+1} / ${voters.length}</span>
         </div>
 
-        <p class="big center">${voter}번 플레이어</p>
-        <p class="center">라이어는 몇 번인가요?</p>
+        <p class="big center">지금 차례: ${escapeHtml(currentVoterName)}</p>
+        <p class="center muted">아래에서 라이어라고 생각하는 사람을 <b>한 번 탭</b>하세요.</p>
 
-        <label>지목</label>
-        <select id="guess">${options}</select>
+        <div class="tiles">${tilesHtml}</div>
 
-        <button class="btn" id="next">다음</button>
+        <div class="divider"></div>
+        <p class="muted center">현재 지목 기록</p>
+        <div class="chipRow">${chips || `<span class="muted">아직 없음</span>`}</div>
+
+        <button class="btn secondary" id="undo">이번 차례 되돌리기</button>
         <button class="btn secondary" id="cancel">취소(라운드로)</button>
 
         <div class="notice">
-          제시자는 투표하지 않습니다. (제시자: ${state.hostIndex}번)
+          제시자(${escapeHtml(pnameWithNo(state.hostId))})는 지목 대상에서 제외됩니다.
         </div>
       </div>
     `;
 
-    document.getElementById("next").onclick = () => {
-      const guessed = clampInt(document.getElementById("guess").value, 1, state.N, 1);
-      state.guesses[voter] = guessed;
-      state.cursorV += 1;
+    // Click target tile
+    document.querySelectorAll(".tile[data-target]").forEach(tile => {
+      tile.addEventListener("click", () => {
+        const targetId = parseInt(tile.getAttribute("data-target"), 10);
+        // Register vote for current voter
+        registerVote(currentVoterId, targetId);
+        // Advance to next voter
+        state.voteCursor += 1;
+        save();
+        render();
+      });
+    });
+
+    document.getElementById("undo").onclick = () => {
+      if (state.voteCursor <= 0) { toast("되돌릴 차례가 없어요."); return; }
+      // Step back one voter, remove their vote
+      const prevVoterId = voters[state.voteCursor - 1];
+      const prevTarget = state.votes[prevVoterId];
+      if (prevTarget != null) {
+        state.accusations[prevTarget] = Math.max(0, (state.accusations[prevTarget] || 0) - 1);
+        delete state.votes[prevVoterId];
+      }
+      state.voteCursor -= 1;
       save();
+      toast("한 차례 되돌렸어요.");
       render();
     };
 
     document.getElementById("cancel").onclick = () => {
-      if (confirm("투표 입력을 취소하고 라운드 화면으로 돌아갈까요?")) {
-        delete state.cursorV;
-        state.guesses = {};
+      if (confirm("지목을 취소하고 라운드 화면으로 돌아갈까요? (입력된 지목은 초기화됩니다)")) {
+        state.votes = {};
+        state.accusations = {};
+        state.voteOrder = [];
+        state.voteCursor = 0;
         save();
         setPhase("ROUND_SETUP");
       }
@@ -731,8 +817,9 @@
     $app.innerHTML = `
       <div class="card">
         <h1>라운드 ${state.round} 결과</h1>
-        <p><b>라이어:</b> ${state.liarIndex}번</p>
-        <p><b>제시자:</b> ${state.hostIndex}번</p>
+
+        <p><b>라이어:</b> ${escapeHtml(pnameWithNo(state.liarId))}</p>
+        <p><b>제시자:</b> ${escapeHtml(pnameWithNo(state.hostId))}</p>
         <p><b>라이어 지목 수:</b> ${acc}명</p>
         <p><b>보너스:</b> ${bonusApplied ? "적용 (라이어 +5, 제시자 +4)" : "미적용"}</p>
 
@@ -766,7 +853,8 @@
   function renderScoreTable() {
     let rows = "";
     for (let i=1;i<=state.N;i++) {
-      rows += `<tr><td>${i}번</td><td>${state.scores[i] ?? 0}</td></tr>`;
+      const p = playerById(i);
+      rows += `<tr><td>${escapeHtml(p?.name ?? `Player ${i}`)} <span class="muted">(${i}번)</span></td><td>${p?.score ?? 0}</td></tr>`;
     }
     return `
       <table>
@@ -793,7 +881,11 @@
   }
 
   function escapeHtml(str) {
-    return (str ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+    return (str ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;");
   }
 
   // Boot
