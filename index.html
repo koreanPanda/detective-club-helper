@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Detective Club Helper</title>
+  <style>
+    :root { --pad: 18px; --radius: 16px; --shadow: 0 10px 30px rgba(0,0,0,.08); }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      background: #f6f7fb;
+      color: #111;
+      min-height: 100vh;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+    .app {
+      width: min(560px, 100%);
+      padding: var(--pad);
+      padding-bottom: calc(var(--pad) + env(safe-area-inset-bottom));
+    }
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: var(--pad);
+      margin: 10px 0;
+    }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin: 0 0 8px; }
+    p { margin: 8px 0; line-height: 1.45; color: #333; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    label { font-size: 13px; color: #444; display: block; margin: 12px 0 6px; }
+    input, select {
+      width: 100%;
+      padding: 12px 12px;
+      border: 1px solid #d8dbe6;
+      border-radius: 12px;
+      font-size: 16px;
+      outline: none;
+      background: #fff;
+    }
+    input:focus, select:focus { border-color: #7aa7ff; box-shadow: 0 0 0 3px rgba(122,167,255,.25); }
+    .btn {
+      width: 100%;
+      padding: 14px 14px;
+      border: 0;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      background: #111;
+      color: #fff;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+    .btn.secondary { background: #e9ecf6; color: #111; font-weight: 700; }
+    .btn.danger { background: #d62828; }
+    .btn:active { transform: translateY(1px); }
+    .muted { color: #666; font-size: 13px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: #f0f2f9;
+      color: #222;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+    .divider { height: 1px; background: #eef0f6; margin: 14px 0; }
+    .big {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin: 6px 0 10px;
+    }
+    .center { text-align: center; }
+    .progressWrap { height: 10px; background: #eef0f6; border-radius: 999px; overflow: hidden; }
+    .progressBar { height: 10px; width: 0%; background: #111; transition: width 0.05s linear; }
+    .pressArea {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+      border: 2px dashed #d8dbe6;
+      border-radius: 18px;
+      padding: 18px;
+      margin-top: 12px;
+      background: #fbfcff;
+    }
+    .pressHint { font-size: 14px; color: #333; }
+    .revealBox {
+      border-radius: 18px;
+      padding: 18px;
+      background: #111;
+      color: #fff;
+      margin-top: 12px;
+      min-height: 86px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 800;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 6px; border-bottom: 1px solid #eef0f6; text-align: left; }
+    th { font-size: 13px; color: #666; }
+    td { font-size: 15px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 420px) { .grid2 { grid-template-columns: 1fr; } }
+    .notice {
+      font-size: 12px;
+      color: #666;
+      margin-top: 10px;
+      background: #f5f7ff;
+      border: 1px solid #e1e7ff;
+      padding: 10px 12px;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app"></div>
+
+<script>
+(() => {
+  // -----------------------------
+  // State
+  // -----------------------------
+  const STORAGE_KEY = "dc_helper_v1";
+  const defaultState = {
+    N: 6,
+    totalRounds: 0, // 0 = 무제한
+    round: 1,
+    scores: {}, // {1:0,2:0,...}
+    phase: "HOME",
+    // round-specific
+    hostIndex: 1,
+    liarIndex: 2,
+    keyword: "",
+    revealOrder: [],
+    cursor: 0,
+    revealed: {}, // {playerId:true}
+    // voting
+    guesses: {}, // {playerId: guessedPlayerId}
+  };
+
+  let state = load() || initDefault();
+
+  function initDefault() {
+    const s = structuredClone(defaultState);
+    s.scores = {};
+    for (let i=1;i<=s.N;i++) s.scores[i]=0;
+    return s;
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch { return null; }
+  }
+
+  function resetAll() {
+    state = initDefault();
+    state.phase = "HOME";
+    save();
+    render();
+  }
+
+  // Back navigation guard (lightweight)
+  history.pushState({locked:true}, "");
+  window.addEventListener("popstate", (e) => {
+    history.pushState({locked:true}, "");
+    toast("뒤로가기는 비활성화되어 있어요. (치팅 방지)");
+  });
+
+  // -----------------------------
+  // Helpers
+  // -----------------------------
+  const $app = document.getElementById("app");
+
+  function setPhase(phase) {
+    state.phase = phase;
+    save();
+    render();
+  }
+
+  function clampInt(v, min, max, fallback) {
+    const n = parseInt(v, 10);
+    if (Number.isNaN(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+  }
+
+  function makeRevealOrder(N, hostIndex) {
+    const arr = [];
+    for (let i=1;i<=N;i++) if (i !== hostIndex) arr.push(i);
+    return arr;
+  }
+
+  function nextHostIndex(host, N) {
+    return (host % N) + 1;
+  }
+
+  function applyScoring() {
+    const { hostIndex, liarIndex, guesses, scores, N } = state;
+
+    // Count accusations (excluding host by design)
+    let accusationCount = 0;
+    for (const [pidStr, guessed] of Object.entries(guesses)) {
+      const pid = parseInt(pidStr, 10);
+      if (pid === hostIndex) continue;
+      if (guessed === liarIndex) accusationCount++;
+    }
+
+    // Everyone who guessed liar gets +3
+    for (const [pidStr, guessed] of Object.entries(guesses)) {
+      const pid = parseInt(pidStr, 10);
+      if (pid === hostIndex) continue;
+      if (guessed === liarIndex) state.scores[pid] = (state.scores[pid] || 0) + 3;
+    }
+
+    // If liar got <= 1 accusation: liar +5, host +4
+    if (accusationCount <= 1) {
+      state.scores[liarIndex] = (state.scores[liarIndex] || 0) + 5;
+      state.scores[hostIndex] = (state.scores[hostIndex] || 0) + 4;
+    }
+
+    state._lastAccusationCount = accusationCount;
+    save();
+  }
+
+  function startRound() {
+    // Prepare round data
+    state.keyword = state.keyword?.trim() || "";
+    state.revealOrder = makeRevealOrder(state.N, state.hostIndex);
+    state.cursor = 0;
+    state.revealed = {};
+    state.guesses = {};
+    save();
+    setPhase("REVEAL_WAIT");
+  }
+
+  function finishRevealAndGoPlay() {
+    setPhase("PLAY_START");
+  }
+
+  function startVoting() {
+    state.guesses = {};
+    save();
+    setPhase("VOTING");
+  }
+
+  function finishVoting() {
+    applyScoring();
+    setPhase("RESULT");
+  }
+
+  function nextRound() {
+    // Round increment + rotate host
+    state.round += 1;
+    state.hostIndex = nextHostIndex(state.hostIndex, state.N);
+    state.keyword = "";
+    state.liarIndex = clampInt(state.liarIndex, 1, state.N, 1);
+    state.revealOrder = [];
+    state.cursor = 0;
+    state.revealed = {};
+    state.guesses = {};
+    save();
+    setPhase("ROUND_SETUP");
+  }
+
+  function ensureScores() {
+    // Keep scores dict consistent if N changes
+    const N = state.N;
+    const next = {};
+    for (let i=1;i<=N;i++) next[i] = state.scores?.[i] ?? 0;
+    state.scores = next;
+  }
+
+  // Tiny toast
+  let toastTimer = null;
+  function toast(msg) {
+    const id = "toast";
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement("div");
+      el.id = id;
+      el.style.position = "fixed";
+      el.style.left = "50%";
+      el.style.bottom = "20px";
+      el.style.transform = "translateX(-50%)";
+      el.style.background = "rgba(17,17,17,.92)";
+      el.style.color = "#fff";
+      el.style.padding = "10px 12px";
+      el.style.borderRadius = "12px";
+      el.style.fontSize = "13px";
+      el.style.zIndex = "9999";
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.display = "block";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.style.display = "none"; }, 1600);
+  }
+
+  // -----------------------------
+  // Long press logic (2s)
+  // -----------------------------
+  function attachLongPress(container, onRevealActiveChange) {
+    let holding = false;
+    let startedAt = 0;
+    let raf = null;
+    let revealed = false;
+
+    const bar = container.querySelector(".progressBar");
+
+    const update = () => {
+      if (!holding) return;
+      const elapsed = performance.now() - startedAt;
+      const p = Math.min(1, elapsed / 2000);
+      bar.style.width = (p * 100).toFixed(1) + "%";
+
+      if (p >= 1 && !revealed) {
+        revealed = true;
+        onRevealActiveChange(true); // show secret while still holding
+      }
+      raf = requestAnimationFrame(update);
+    };
+
+    const start = (e) => {
+      e.preventDefault();
+      if (holding) return;
+      holding = true;
+      revealed = false;
+      bar.style.width = "0%";
+      onRevealActiveChange(false);
+      startedAt = performance.now();
+      raf = requestAnimationFrame(update);
+    };
+
+    const end = (e) => {
+      e.preventDefault();
+      if (!holding) return;
+      holding = false;
+      if (raf) cancelAnimationFrame(raf);
+      // If revealed was active, stop showing secret immediately
+      onRevealActiveChange(false);
+      // keep progress bar as-is; UI will move to "confirmed" state outside
+    };
+
+    container.addEventListener("pointerdown", start, {passive:false});
+    container.addEventListener("pointerup", end, {passive:false});
+    container.addEventListener("pointercancel", end, {passive:false});
+    container.addEventListener("pointerleave", end, {passive:false});
+  }
+
+  // -----------------------------
+  // Render
+  // -----------------------------
+  function render() {
+    ensureScores();
+
+    switch (state.phase) {
+      case "HOME": return renderHome();
+      case "ROUND_SETUP": return renderRoundSetup();
+      case "REVEAL_WAIT": return renderRevealWait();
+      case "REVEAL_DONE": return renderRevealDone();
+      case "PASS_NEXT": return renderPassNext();
+      case "PLAY_START": return renderPlayStart();
+      case "VOTING": return renderVoting();
+      case "RESULT": return renderResult();
+      default:
+        state.phase = "HOME"; save(); return renderHome();
+    }
+  }
+
+  function renderHome() {
+    $app.innerHTML = `
+      <div class="card">
+        <h1>Detective Club Helper</h1>
+        <p class="muted">한 대의 폰으로 제시어/라이어 분배 + 투표 + 자동 점수</p>
+        <div class="divider"></div>
+
+        <label>참가자 수 (N)</label>
+        <input id="N" inputmode="numeric" value="${state.N}" />
+
+        <label>총 라운드 수 (0 = 무제한)</label>
+        <input id="R" inputmode="numeric" value="${state.totalRounds}" />
+
+        <button class="btn" id="start">설정 완료 → 라운드 1</button>
+        <button class="btn secondary" id="reset">전체 초기화</button>
+
+        <div class="notice">
+          iPhone에서는 화면 잠금이 걸리면 흐름이 끊길 수 있어요. 게임 중에는 자동 잠금을 꺼두면 편합니다.
+        </div>
+      </div>
+    `;
+
+    document.getElementById("start").onclick = () => {
+      const N = clampInt(document.getElementById("N").value, 3, 20, 6);
+      const R = clampInt(document.getElementById("R").value, 0, 50, 0);
+      state.N = N;
+      state.totalRounds = R;
+      state.round = 1;
+      state.hostIndex = 1;
+      state.liarIndex = Math.min(2, N);
+      state.keyword = "";
+      state.scores = {};
+      for (let i=1;i<=N;i++) state.scores[i]=0;
+      save();
+      setPhase("ROUND_SETUP");
+    };
+
+    document.getElementById("reset").onclick = () => {
+      if (confirm("정말 초기화할까요? 점수와 설정이 모두 리셋됩니다.")) resetAll();
+    };
+  }
+
+  function renderRoundSetup() {
+    const options = Array.from({length: state.N}, (_,i)=>i+1)
+      .map(i => `<option value="${i}" ${i===state.hostIndex?'selected':''}>${i}번</option>`).join("");
+
+    const liarOptions = Array.from({length: state.N}, (_,i)=>i+1)
+      .map(i => `<option value="${i}" ${i===state.liarIndex?'selected':''}>${i}번</option>`).join("");
+
+    $app.innerHTML = `
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center;">
+          <h1>라운드 ${state.round}</h1>
+          <span class="pill">제시자: ${state.hostIndex}번</span>
+        </div>
+        <p class="muted">제시자가 제시어와 라이어를 설정합니다.</p>
+
+        <label>제시자 번호</label>
+        <select id="host">${options}</select>
+
+        <label>라이어 번호</label>
+        <select id="liar">${liarOptions}</select>
+
+        <label>제시어 (텍스트 1줄)</label>
+        <input id="keyword" placeholder="예) 우주, 커피, 비 오는 날..." value="${escapeHtml(state.keyword||"")}" />
+
+        <button class="btn" id="go">리빌 시작</button>
+        <button class="btn secondary" id="score">점수표 보기</button>
+        <button class="btn secondary" id="home">홈으로</button>
+
+        <div class="notice">
+          리빌 시작 후에는 “라이어 번호”가 다시 보이지 않도록 뒤로가기를 막아두었습니다.
+        </div>
+      </div>
+      ${renderScoreTableCard()}
+    `;
+
+    document.getElementById("host").onchange = (e) => {
+      state.hostIndex = clampInt(e.target.value, 1, state.N, 1);
+      save(); render();
+    };
+
+    document.getElementById("liar").onchange = (e) => {
+      state.liarIndex = clampInt(e.target.value, 1, state.N, 2);
+      save(); render();
+    };
+
+    document.getElementById("go").onclick = () => {
+      const keyword = document.getElementById("keyword").value.trim();
+      if (!keyword) { toast("제시어를 입력해 주세요."); return; }
+      if (state.liarIndex === state.hostIndex) {
+        toast("제시자와 라이어가 같을 수는 없어요. 라이어 번호를 바꿔주세요.");
+        return;
+      }
+      state.keyword = keyword;
+      save();
+      startRound();
+    };
+
+    document.getElementById("home").onclick = () => setPhase("HOME");
+    document.getElementById("score").onclick = () => toast("아래 점수표를 확인하세요.");
+  }
+
+  function renderRevealWait() {
+    const order = state.revealOrder || [];
+    const total = order.length; // N-1
+    const currentPlayer = order[state.cursor];
+
+    // If cursor finished
+    if (state.cursor >= total) {
+      finishRevealAndGoPlay();
+      return;
+    }
+
+    const already = !!state.revealed?.[currentPlayer];
+
+    $app.innerHTML = `
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center;">
+          <h1>제시어 확인</h1>
+          <span class="pill">${state.cursor+1} / ${total}</span>
+        </div>
+        <p class="big center">${currentPlayer}번 플레이어 차례</p>
+
+        <div class="pressArea" id="pressArea">
+          <p class="pressHint center">${already ? "이미 확인했습니다." : "2초간 꾹 눌러야 공개됩니다."}</p>
+          <div class="progressWrap"><div class="progressBar"></div></div>
+
+          <div class="revealBox" id="revealBox" style="opacity:.08;">
+            (여기에 표시)
+          </div>
+        </div>
+
+        <button class="btn ${already ? "" : "secondary"}" id="confirm" ${already ? "" : "disabled"}>
+          ${already ? "다음 단계로" : "확인 완료 후 활성화됩니다"}
+        </button>
+
+        <button class="btn secondary" id="abort">라운드 설정으로 (리셋)</button>
+      </div>
+    `;
+
+    const revealBox = document.getElementById("revealBox");
+    const confirmBtn = document.getElementById("confirm");
+
+    let revealedOnce = already;
+
+    function showSecret(active) {
+      if (revealedOnce) {
+        // already confirmed -> do not show again
+        revealBox.style.opacity = ".08";
+        revealBox.textContent = "(확인 완료)";
+        return;
+      }
+
+      if (!active) {
+        revealBox.style.opacity = ".08";
+        revealBox.textContent = "(여기에 표시)";
+        return;
+      }
+
+      revealBox.style.opacity = "1";
+      if (currentPlayer === state.liarIndex) {
+        revealBox.textContent = "당신은 라이어입니다. 제시어를 유추해보세요.";
+      } else {
+        revealBox.textContent = `제시어는 “${state.keyword}” 입니다.`;
+      }
+    }
+
+    if (!already) {
+      attachLongPress(document.getElementById("pressArea"), (active) => {
+        // When secret becomes active, it stays only while holding.
+        showSecret(active);
+        // When they release after having revealed at least once, mark confirmed.
+        if (!active) {
+          // If they had reached full 2s, revealBox would have been shown during hold.
+          // We detect "revealed" by checking if revealBox was fully visible recently is hard.
+          // Simpler: if progress bar reached 100% at least once -> we set revealedOnce in attachLongPress? Not exposed.
+          // Workaround: if revealBox opacity was set to 1 at any point, we can infer it.
+        }
+      });
+
+      // Infer revealed completion by watching progress width hitting 100%
+      const bar = document.querySelector(".progressBar");
+      const obs = new MutationObserver(() => {
+        if (revealedOnce) return;
+        if (bar.style.width && parseFloat(bar.style.width) >= 100) {
+          // Once bar reaches 100, user still needs to release; we wait a bit and then enable confirm after release.
+          // We enable confirm immediately after 100% to reduce friction, but secret still only shows while holding.
+          confirmBtn.disabled = false;
+          confirmBtn.className = "btn";
+        }
+      });
+      obs.observe(bar, { attributes: true, attributeFilter: ["style"] });
+
+      // Also, when user lifts finger, if confirm enabled, mark revealed
+      document.getElementById("pressArea").addEventListener("pointerup", () => {
+        if (!revealedOnce && !confirmBtn.disabled) {
+          revealedOnce = true;
+          state.revealed[currentPlayer] = true;
+          save();
+          revealBox.style.opacity = ".08";
+          revealBox.textContent = "(확인 완료)";
+        }
+      });
+    } else {
+      revealBox.style.opacity = ".08";
+      revealBox.textContent = "(확인 완료)";
+      confirmBtn.disabled = false;
+      confirmBtn.className = "btn";
+    }
+
+    confirmBtn.onclick = () => {
+      if (!state.revealed[currentPlayer]) {
+        toast("먼저 2초간 눌러 확인해 주세요.");
+        return;
+      }
+      setPhase("PASS_NEXT");
+    };
+
+    document.getElementById("abort").onclick = () => {
+      if (confirm("리빌을 중단하고 라운드 설정으로 돌아갈까요? (이번 라운드 진행은 초기화됩니다)")) {
+        state.revealOrder = [];
+        state.cursor = 0;
+        state.revealed = {};
+        state.guesses = {};
+        save();
+        setPhase("ROUND_SETUP");
+      }
+    };
+  }
+
+  function renderPassNext() {
+    const order = state.revealOrder || [];
+    const total = order.length;
+    const currentPlayer = order[state.cursor];
+
+    $app.innerHTML = `
+      <div class="card">
+        <h1 class="center">다음 사람에게 넘기기</h1>
+        <p class="center">이 화면 그대로 <b>다음 사용자에게 휴대폰을 넘겨주세요.</b></p>
+        <p class="muted center">현재 플레이어: ${currentPlayer}번 · 진행: ${state.cursor+1}/${total}</p>
+
+        <button class="btn" id="next">다음 플레이어 시작</button>
+        <button class="btn secondary" id="back">이전 화면</button>
+      </div>
+    `;
+
+    document.getElementById("next").onclick = () => {
+      state.cursor += 1;
+      save();
+      setPhase("REVEAL_WAIT");
+    };
+    document.getElementById("back").onclick = () => setPhase("REVEAL_WAIT");
+  }
+
+  function renderRevealDone() {
+    // not used in this flow; kept for extensibility
+  }
+
+  function renderPlayStart() {
+    $app.innerHTML = `
+      <div class="card">
+        <h1 class="center">게임을 시작합니다!</h1>
+        <p class="center">이제 오프라인에서 카드 2장씩 내려놓고, 마지막에 라이어 지목을 진행하세요.</p>
+
+        <button class="btn" id="vote">라이어 지목(투표) 입력</button>
+        <button class="btn secondary" id="score">점수표 보기</button>
+        <button class="btn secondary" id="setup">라운드 설정으로</button>
+      </div>
+      ${renderScoreTableCard()}
+    `;
+
+    document.getElementById("vote").onclick = () => startVoting();
+    document.getElementById("setup").onclick = () => setPhase("ROUND_SETUP");
+    document.getElementById("score").onclick = () => toast("아래 점수표를 확인하세요.");
+  }
+
+  function renderVoting() {
+    // voting order: everyone except host
+    const voters = [];
+    for (let i=1;i<=state.N;i++) if (i !== state.hostIndex) voters.push(i);
+
+    // cursor for voting stored separately? We'll reuse state.cursorV
+    if (state.cursorV == null) state.cursorV = 0;
+    const idx = state.cursorV;
+    const voter = voters[idx];
+
+    if (idx >= voters.length) {
+      // Done
+      delete state.cursorV;
+      save();
+      finishVoting();
+      return;
+    }
+
+    const options = Array.from({length: state.N}, (_,i)=>i+1)
+      .filter(i => i !== state.hostIndex) // optional: host cannot be liar by rules, so hide
+      .map(i => `<option value="${i}">${i}번</option>`).join("");
+
+    $app.innerHTML = `
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center;">
+          <h1>라이어 지목</h1>
+          <span class="pill">${idx+1} / ${voters.length}</span>
+        </div>
+
+        <p class="big center">${voter}번 플레이어</p>
+        <p class="center">라이어는 몇 번인가요?</p>
+
+        <label>지목</label>
+        <select id="guess">${options}</select>
+
+        <button class="btn" id="next">다음</button>
+        <button class="btn secondary" id="cancel">취소(라운드로)</button>
+
+        <div class="notice">
+          제시자는 투표하지 않습니다. (제시자: ${state.hostIndex}번)
+        </div>
+      </div>
+    `;
+
+    document.getElementById("next").onclick = () => {
+      const guessed = clampInt(document.getElementById("guess").value, 1, state.N, 1);
+      state.guesses[voter] = guessed;
+      state.cursorV += 1;
+      save();
+      render();
+    };
+
+    document.getElementById("cancel").onclick = () => {
+      if (confirm("투표 입력을 취소하고 라운드 화면으로 돌아갈까요?")) {
+        delete state.cursorV;
+        state.guesses = {};
+        save();
+        setPhase("ROUND_SETUP");
+      }
+    };
+  }
+
+  function renderResult() {
+    const acc = state._lastAccusationCount ?? 0;
+    const bonusApplied = acc <= 1;
+
+    $app.innerHTML = `
+      <div class="card">
+        <h1>라운드 ${state.round} 결과</h1>
+        <p><b>라이어:</b> ${state.liarIndex}번</p>
+        <p><b>제시자:</b> ${state.hostIndex}번</p>
+        <p><b>라이어 지목 수:</b> ${acc}명</p>
+        <p><b>보너스:</b> ${bonusApplied ? "적용 (라이어 +5, 제시자 +4)" : "미적용"}</p>
+
+        <div class="divider"></div>
+        <h2>점수표</h2>
+        ${renderScoreTable()}
+
+        <button class="btn" id="nextRound">다음 라운드</button>
+        <button class="btn secondary" id="setup">라운드 설정으로</button>
+        <button class="btn danger" id="reset">게임 초기화</button>
+
+        ${renderGameEndHint()}
+      </div>
+    `;
+
+    document.getElementById("nextRound").onclick = () => {
+      if (state.totalRounds > 0 && state.round >= state.totalRounds) {
+        toast("설정한 총 라운드 수에 도달했습니다. (홈에서 변경 가능)");
+        setPhase("HOME");
+        return;
+      }
+      nextRound();
+    };
+
+    document.getElementById("setup").onclick = () => setPhase("ROUND_SETUP");
+    document.getElementById("reset").onclick = () => {
+      if (confirm("정말 초기화할까요?")) resetAll();
+    };
+  }
+
+  function renderScoreTable() {
+    let rows = "";
+    for (let i=1;i<=state.N;i++) {
+      rows += `<tr><td>${i}번</td><td>${state.scores[i] ?? 0}</td></tr>`;
+    }
+    return `
+      <table>
+        <thead><tr><th>플레이어</th><th>점수</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  function renderScoreTableCard() {
+    return `
+      <div class="card">
+        <h2>점수표</h2>
+        ${renderScoreTable()}
+      </div>
+    `;
+  }
+
+  function renderGameEndHint() {
+    if (state.totalRounds > 0) {
+      return `<p class="muted">총 라운드 수: ${state.totalRounds} · 현재: ${state.round}</p>`;
+    }
+    return `<p class="muted">총 라운드 수: 무제한</p>`;
+  }
+
+  function escapeHtml(str) {
+    return (str ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+  }
+
+  // Boot
+  render();
+
+})();
+</script>
+</body>
+</html>
