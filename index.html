@@ -120,14 +120,8 @@
     .pno { font-weight: 800; color:#333; opacity:.75; font-size: 12px; }
 
     /* Name entry default behavior */
-    .nameInput.defaultName {
-      color: #9aa0ad;
-      font-weight: 800;
-    }
-    .nameInput.realName {
-      color: #111;
-      font-weight: 900;
-    }
+    .nameInput.defaultName { color: #9aa0ad; font-weight: 800; }
+    .nameInput.realName { color: #111; font-weight: 900; }
 
     /* Colored small token for "1번" etc in name list */
     .numToken{
@@ -265,6 +259,13 @@
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
     }
+
+    /* Hard-disable selection specifically where iOS tends to select */
+    .pmark, .pmark *, .pno, .numToken, .numToken *, .tileTitle, .tileSub, .badge, .tokenStack, .chipRow, .chip {
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      -webkit-touch-callout: none !important;
+    }
   </style>
 </head>
 <body>
@@ -272,7 +273,7 @@
 
 <script>
 (() => {
-  const STORAGE_KEY = "dc_helper_v7_full";
+  const STORAGE_KEY = "dc_helper_v8_full";
 
   const PASTELS = [
     "#FFD6A5", "#FDFFB6", "#CAFFBF", "#9BF6FF", "#A0C4FF",
@@ -299,7 +300,6 @@
     accusations: {},
     _lastAccusationCount: 0,
 
-    // vote UX
     voteSelectedTarget: null,
     _voteCursorSeen: -1,
   };
@@ -329,7 +329,6 @@
       if (!raw) return null;
       const obj = JSON.parse(raw);
 
-      // Backfill
       if (obj?.players?.length) {
         obj.players = obj.players.map(p => ({
           ...p,
@@ -351,7 +350,6 @@
     render();
   }
 
-  // back navigation guard
   history.pushState({locked:true}, "");
   window.addEventListener("popstate", () => {
     history.pushState({locked:true}, "");
@@ -415,6 +413,73 @@
   function nextHostId(host, N) { return (host % N) + 1; }
   function pickRandom(arr) { return arr?.length ? arr[Math.floor(Math.random() * arr.length)] : null; }
 
+  // --- Selection killers (iOS) ---
+  function clearTextSelection() {
+    try {
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount) sel.removeAllRanges();
+    } catch {}
+  }
+
+  document.addEventListener("selectionchange", () => {
+    const a = document.activeElement;
+    const typing = a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA");
+    if (typing) return;
+    clearTextSelection();
+  });
+
+  function toast(msg) {
+    const id = "toast";
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement("div");
+      el.id = id;
+      el.style.position = "fixed";
+      el.style.left = "50%";
+      el.style.bottom = "20px";
+      el.style.transform = "translateX(-50%)";
+      el.style.background = "rgba(17,17,17,.92)";
+      el.style.color = "#fff";
+      el.style.padding = "10px 12px";
+      el.style.borderRadius = "12px";
+      el.style.fontSize = "13px";
+      el.style.zIndex = "9999";
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.display = "block";
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { el.style.display = "none"; }, 1600);
+  }
+
+  function hapticTick(ms = 18) {
+    try { if (navigator.vibrate) navigator.vibrate(ms); } catch {}
+  }
+
+  function isLooksLikeDefault(name, id) {
+    return (name || "").trim() === `Player ${id}`;
+  }
+
+  function ensurePlayersForN(newN) {
+    const prev = new Map(state.players.map(p => [p.id, p]));
+    const next = [];
+    for (let i=1;i<=newN;i++) {
+      const old = prev.get(i);
+      const name = old?.name ?? `Player ${i}`;
+      const isDef = (typeof old?.isDefaultName === "boolean") ? old.isDefaultName : isLooksLikeDefault(name, i);
+      next.push({
+        id: i,
+        name,
+        score: old?.score ?? 0,
+        color: old?.color ?? colorForId(i),
+        isDefaultName: isDef
+      });
+    }
+    state.players = next;
+    state.N = newN;
+    if (state.hostId > newN) state.hostId = 1;
+  }
+
   function startRound() {
     state.keyword = (state.keyword || "").trim();
     state.revealOrder = makeOrderExcluding(state.N, state.hostId);
@@ -428,7 +493,6 @@
     state._voteCursorSeen = -1;
 
     state.liarId = pickRandom(state.revealOrder);
-
     save();
     setPhase("REVEAL");
   }
@@ -485,11 +549,678 @@
     save();
   }
 
-  function finishVoting() {
-    applyScoring();
-    setPhase("RESULT");
-  }
+  function finishVoting() { applyScoring(); setPhase("RESULT"); }
 
   function nextRound() {
     state.round += 1;
-    state.hostId = nextHost
+    state.hostId = nextHostId(state.hostId, state.N);
+    state.keyword = "";
+    state.liarId = null;
+
+    state.revealOrder = [];
+    state.cursor = 0;
+    state.revealed = {};
+    state.votes = {};
+    state.accusations = {};
+    state.voteOrder = [];
+    state.voteCursor = 0;
+    state.voteSelectedTarget = null;
+    state._voteCursorSeen = -1;
+    save();
+    setPhase("ROUND_SETUP");
+  }
+
+  // Reveal long press (2s)
+  function attachLongPressOnce(container, onCompleted) {
+    let holding = false;
+    let startedAt = 0;
+    let raf = null;
+    let completed = false;
+
+    const bar = container.querySelector(".progressBar");
+
+    const update = () => {
+      if (!holding) return;
+      const elapsed = performance.now() - startedAt;
+      const p = Math.min(1, elapsed / 2000);
+      bar.style.width = (p * 100).toFixed(1) + "%";
+      if (p >= 1 && !completed) {
+        completed = true;
+        holding = false;
+        if (raf) cancelAnimationFrame(raf);
+        clearTextSelection();
+        onCompleted();
+      } else {
+        raf = requestAnimationFrame(update);
+      }
+    };
+
+    const start = (e) => {
+      if (e.cancelable) e.preventDefault();
+      clearTextSelection();
+      if (completed) return;
+      if (holding) return;
+      holding = true;
+      bar.style.width = "0%";
+      startedAt = performance.now();
+      raf = requestAnimationFrame(update);
+    };
+
+    const end = (e) => {
+      if (e.cancelable) e.preventDefault();
+      clearTextSelection();
+      if (!holding) return;
+      holding = false;
+      if (raf) cancelAnimationFrame(raf);
+    };
+
+    container.addEventListener("pointerdown", start, {passive:false});
+    container.addEventListener("pointerup", end, {passive:false});
+    container.addEventListener("pointercancel", end, {passive:false});
+    container.addEventListener("pointerleave", end, {passive:false});
+    container.addEventListener("contextmenu", (e) => e.preventDefault());
+    container.addEventListener("selectstart", (e) => e.preventDefault());
+  }
+
+  function render() {
+    switch (state.phase) {
+      case "HOME": return renderHome();
+      case "ROUND_SETUP": return renderRoundSetup();
+      case "REVEAL": return renderReveal();
+      case "PASS_NEXT": return renderPassNext();
+      case "PLAY_START": return renderPlayStart();
+      case "VOTING_TOKENS": return renderVotingTokens();
+      case "RESULT": return renderResult();
+      default:
+        state.phase = "HOME"; save(); return renderHome();
+    }
+  }
+
+  function renderHome() {
+    $app.innerHTML = `
+      <div class="card">
+        <h1>Detective Club Helper</h1>
+        <p class="muted">디텍티브 클럽 보드게임 made by 베이오락실 with chatgpt</p>
+        <div class="divider"></div>
+
+        <div class="grid2">
+          <div>
+            <label>참가자 수</label>
+            <input id="N" inputmode="numeric" value="${state.N}" />
+          </div>
+          <div>
+            <label>총 라운드 수 (0 = 무제한)</label>
+            <input id="R" inputmode="numeric" value="${state.totalRounds}" />
+          </div>
+        </div>
+
+        <label>플레이어 이름</label>
+        <div id="nameList"></div>
+
+        <button class="btn" id="start">설정 완료 → 라운드 1</button>
+        <button class="btn secondary" id="reset">전체 초기화</button>
+
+        <div class="notice">
+          iPhone에서는 화면 잠금이 걸리면 흐름이 끊길 수 있어요. 게임 중에는 자동 잠금을 꺼두면 편합니다.
+        </div>
+      </div>
+      ${renderScoreTableCard()}
+    `;
+
+    const nameList = document.getElementById("nameList");
+
+    function renderNameInputs(n) {
+      let html = "";
+      for (let i=1;i<=n;i++) {
+        const p = playerById(i);
+        const cls = p?.isDefaultName ? "nameInput defaultName" : "nameInput realName";
+        html += `
+          <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+            ${numTokenHTML(i)}
+            <input class="${cls}" data-pid="${i}" value="${escapeHtml(p?.name ?? `Player ${i}`)}" />
+          </div>
+        `;
+      }
+      nameList.innerHTML = html;
+
+      nameList.querySelectorAll("input[data-pid]").forEach(inp => {
+        inp.addEventListener("focus", (e) => {
+          const id = parseInt(e.target.getAttribute("data-pid"), 10);
+          const p = playerById(id);
+          if (!p) return;
+          if (p.isDefaultName) e.target.value = "";
+        });
+
+        inp.addEventListener("input", (e) => {
+          const id = parseInt(e.target.getAttribute("data-pid"), 10);
+          const p = playerById(id);
+          if (!p) return;
+          const v = e.target.value;
+          p.name = v;
+          if (v.trim().length > 0) {
+            p.isDefaultName = false;
+            e.target.classList.remove("defaultName");
+            e.target.classList.add("realName");
+          } else {
+            p.isDefaultName = true;
+            e.target.classList.add("defaultName");
+            e.target.classList.remove("realName");
+          }
+          save();
+        });
+
+        inp.addEventListener("blur", (e) => {
+          const id = parseInt(e.target.getAttribute("data-pid"), 10);
+          const p = playerById(id);
+          if (!p) return;
+          if ((e.target.value || "").trim().length === 0) {
+            p.name = `Player ${id}`;
+            p.isDefaultName = true;
+            e.target.value = p.name;
+            e.target.classList.add("defaultName");
+            e.target.classList.remove("realName");
+            save();
+          }
+        });
+      });
+    }
+
+    renderNameInputs(state.N);
+
+    document.getElementById("N").addEventListener("input", (e) => {
+      const n = clampInt(e.target.value, 3, 20, state.N);
+      ensurePlayersForN(n);
+      save();
+      renderNameInputs(n);
+      // refresh score card
+      const cards = document.querySelectorAll(".card");
+      if (cards.length > 1) cards[cards.length-1].outerHTML = renderScoreTableCard();
+    });
+
+    document.getElementById("start").onclick = () => {
+      const N = clampInt(document.getElementById("N").value, 3, 20, state.N);
+      const R = clampInt(document.getElementById("R").value, 0, 50, 0);
+      ensurePlayersForN(N);
+
+      state.totalRounds = R;
+      state.round = 1;
+      state.hostId = 1;
+      state.keyword = "";
+      state.liarId = null;
+
+      state.players = state.players.map(p => {
+        const name = (p.name || "").trim();
+        const finalName = name.length ? name : `Player ${p.id}`;
+        const isDef = p.isDefaultName ?? isLooksLikeDefault(finalName, p.id);
+        return ({
+          ...p,
+          score: 0,
+          color: p.color || colorForId(p.id),
+          name: finalName,
+          isDefaultName: isDef,
+        });
+      });
+
+      save();
+      setPhase("ROUND_SETUP");
+    };
+
+    document.getElementById("reset").onclick = () => {
+      if (confirm("정말 초기화할까요? 점수와 설정이 모두 리셋됩니다.")) resetAll();
+    };
+  }
+
+  function renderRoundSetup() {
+    const hostOptions = state.players.map(p =>
+      `<option value="${p.id}" ${p.id===state.hostId?'selected':''}>${escapeHtml(p.name)} (${p.id}번)</option>`
+    ).join("");
+
+    $app.innerHTML = `
+      <div class="card">
+        <div class="row">
+          <h1>라운드 ${state.round}</h1>
+          <span class="pill">제시자: ${pmarkHTML(state.hostId)}</span>
+        </div>
+        <p class="muted">제시자는 제시어를 입력합니다. 라이어는 랜덤으로 배정됩니다 (제시자 제외).</p>
+
+        <label>제시자</label>
+        <select id="host">${hostOptions}</select>
+
+        <label>제시어</label>
+        <input id="keyword" placeholder="예) 우주, 커피, 비 오는 날..." value="${escapeHtml(state.keyword||"")}" />
+
+        <button class="btn" id="go">제시어 분배 시작</button>
+        <button class="btn secondary" id="home">홈으로</button>
+      </div>
+      ${renderScoreTableCard()}
+    `;
+
+    document.getElementById("host").onchange = (e) => {
+      state.hostId = clampInt(e.target.value, 1, state.N, 1);
+      save();
+      render();
+    };
+
+    document.getElementById("go").onclick = () => {
+      const keyword = document.getElementById("keyword").value.trim();
+      if (!keyword) { toast("제시어를 입력해 주세요."); return; }
+      state.keyword = keyword;
+      save();
+      startRound();
+    };
+
+    document.getElementById("home").onclick = () => setPhase("HOME");
+  }
+
+  function renderReveal() {
+    const order = state.revealOrder || [];
+    const total = order.length;
+    if (state.cursor >= total) { finishReveal(); return; }
+
+    const currentId = order[state.cursor];
+    const already = !!state.revealed?.[currentId];
+    const isLiar = currentId === state.liarId;
+
+    const secretText = isLiar
+      ? "당신은 라이어입니다. 제시어를 유추해보세요."
+      : `제시어는 “${state.keyword}” 입니다.`;
+
+    $app.innerHTML = `
+      <div class="card">
+        <div class="row">
+          <h1>제시어 확인</h1>
+          <span class="pill">${state.cursor+1} / ${total}</span>
+        </div>
+
+        <p class="big center">${pmarkHTML(currentId)} 차례</p>
+
+        <div class="pressArea" id="pressArea">
+          <p class="center">${already ? "이미 확인했습니다." : "2초간 꾹 눌러 공개하세요."}</p>
+          <div class="progressWrap"><div class="progressBar"></div></div>
+
+          <div class="revealBox" id="revealBox">${already ? escapeHtml(secretText) : "(여기에 표시)"}</div>
+        </div>
+
+        <button class="btn" id="confirm" ${already ? "" : "disabled"}>다음 참가자에게 넘기기</button>
+        <button class="btn secondary" id="abort">라운드 설정으로 (리셋)</button>
+      </div>
+    `;
+
+    const revealBox = document.getElementById("revealBox");
+    const confirmBtn = document.getElementById("confirm");
+
+    if (!already) {
+      attachLongPressOnce(document.getElementById("pressArea"), () => {
+        state.revealed[currentId] = true;
+        save();
+        revealBox.style.opacity = "1";
+        revealBox.textContent = secretText;
+        confirmBtn.disabled = false;
+        toast("확인 완료!");
+        clearTextSelection();
+      });
+    } else {
+      revealBox.style.opacity = "1";
+      confirmBtn.disabled = false;
+    }
+
+    confirmBtn.onclick = () => {
+      if (!state.revealed[currentId]) { toast("먼저 2초간 눌러 확인해 주세요."); return; }
+      setPhase("PASS_NEXT");
+    };
+
+    document.getElementById("abort").onclick = () => {
+      if (confirm("리빌을 중단하고 라운드 설정으로 돌아갈까요? (이번 라운드 진행은 초기화됩니다)")) {
+        state.revealOrder = [];
+        state.cursor = 0;
+        state.revealed = {};
+        state.votes = {};
+        state.accusations = {};
+        state.liarId = null;
+        state.voteSelectedTarget = null;
+        state._voteCursorSeen = -1;
+        save();
+        setPhase("ROUND_SETUP");
+      }
+    };
+  }
+
+  function renderPassNext() {
+    const order = state.revealOrder || [];
+    const total = order.length;
+    const currentId = order[state.cursor];
+    const nextId = (state.cursor + 1 < total) ? order[state.cursor + 1] : state.hostId;
+
+    $app.innerHTML = `
+      <div class="card">
+        <h1 class="center">다음 사람에게 넘기기</h1>
+        <p class="center">이 화면 그대로 <b>다음 사용자에게 휴대폰을 넘겨주세요.</b></p>
+
+        <p class="muted center">
+          방금 확인: ${pmarkHTML(currentId)}
+          · 다음 사용자: ${pmarkHTML(nextId)}
+          · 진행: ${state.cursor+1}/${total}
+        </p>
+
+        <button class="btn" id="next">${state.cursor + 1 < total ? "다음 참가자 시작" : "제시자에게 넘기기"}</button>
+        <button class="btn secondary" id="back">이전 화면</button>
+      </div>
+    `;
+
+    document.getElementById("next").onclick = () => {
+      state.cursor += 1;
+      save();
+      setPhase("REVEAL");
+    };
+    document.getElementById("back").onclick = () => setPhase("REVEAL");
+  }
+
+  function renderPlayStart() {
+    $app.innerHTML = `
+      <div class="card">
+        <h1 class="center">게임을 시작합니다!</h1>
+        <p class="center">
+          오프라인에서 카드 2장씩 내려놓은 뒤,<br/>
+          <b>라이어 지목</b>을 진행하세요.
+        </p>
+
+        <button class="btn" id="vote">라이어 지목 시작 (토큰)</button>
+        <button class="btn secondary" id="setup">라운드 설정으로</button>
+      </div>
+      ${renderScoreTableCard()}
+    `;
+
+    document.getElementById("vote").onclick = () => startVoting();
+    document.getElementById("setup").onclick = () => setPhase("ROUND_SETUP");
+  }
+
+  function renderVotingTokens() {
+    const voters = state.voteOrder || [];
+    const targets = state.players.filter(p => p.id !== state.hostId).map(p => p.id);
+
+    if (state.voteCursor >= voters.length) { finishVoting(); return; }
+
+    const currentVoterId = voters[state.voteCursor];
+
+    // new voter turn => clear selection
+    if (state._voteCursorSeen !== state.voteCursor) {
+      state._voteCursorSeen = state.voteCursor;
+      state.voteSelectedTarget = null;
+      save();
+    }
+
+    const tokenStacks = {};
+    for (const [voterStr, targetStr] of Object.entries(state.votes)) {
+      const voterId = parseInt(voterStr, 10);
+      const targetId = parseInt(targetStr, 10);
+      tokenStacks[targetId] = tokenStacks[targetId] || [];
+      tokenStacks[targetId].push(voterId);
+    }
+
+    const tilesHtml = targets.map(tid => {
+      const votersForThis = tokenStacks[tid] || [];
+      const count = votersForThis.length;
+      const tokens = votersForThis.slice(0, 14).map(vId => {
+        const c = pcolor(vId);
+        return `<span class="token" style="--c:${c}" title="${escapeHtml(playerById(vId)?.name || vId)}"></span>`;
+      }).join("");
+      const more = count > 14 ? `<span class="muted" style="font-weight:900;">+${count-14}</span>` : "";
+      const isDisabled = (tid === currentVoterId);
+      const isSelected = (state.voteSelectedTarget === tid);
+
+      return `
+        <div class="tile ${isDisabled ? "disabled" : ""} ${isSelected ? "selected" : ""}"
+             data-target="${tid}" data-disabled="${isDisabled ? "1" : "0"}">
+          <div class="badge">${count}</div>
+          <div class="tileTitle">${pmarkHTML(tid, true)}</div>
+          <div class="tileSub">${tid}번</div>
+          <div class="tokenStack">${tokens}${more}</div>
+          <div class="tileHoldBarWrap"><div class="tileHoldBar"></div></div>
+        </div>
+      `;
+    }).join("");
+
+    const chips = Object.entries(state.votes)
+      .map(([voterStr, targetId]) => {
+        const v = parseInt(voterStr, 10);
+        const t = parseInt(targetId, 10);
+        return `<span class="chip">${pmarkHTML(v, false)} → ${pmarkHTML(t, false)}</span>`;
+      }).join("");
+
+    $app.innerHTML = `
+      <div class="card">
+        <div class="row">
+          <h1>라이어 지목 (공개)</h1>
+          <span class="pill">${state.voteCursor+1} / ${voters.length}</span>
+        </div>
+
+        <p class="big center">지금 차례: ${pmarkHTML(currentVoterId)}</p>
+        <p class="center muted">아래에서 라이어라고 생각하는 사람을 <b>0.5초간 꾹</b> 눌러 지목하세요. (자기 자신은 선택 불가)</p>
+        <div class="tileHoldHint">짧게 탭하면 선택만 되고, 0.5초 꾹 눌러야 확정됩니다.</div>
+
+        <div class="tiles">${tilesHtml}</div>
+
+        <div class="divider"></div>
+        <p class="muted center">현재 지목 기록</p>
+        <div class="chipRow">${chips || `<span class="muted">아직 없음</span>`}</div>
+
+        <button class="btn secondary" id="undo">이번 차례 되돌리기</button>
+        <button class="btn secondary" id="cancel">취소(라운드로)</button>
+
+        <div class="notice">
+          제시자(${pmarkHTML(state.hostId)})는 지목 대상에서 제외됩니다.
+        </div>
+      </div>
+    `;
+
+    // block contextmenu/select/drag across tiles
+    document.querySelectorAll(".tile").forEach(el => {
+      el.setAttribute("draggable", "false");
+      el.addEventListener("contextmenu", (e) => e.preventDefault());
+      el.addEventListener("selectstart", (e) => e.preventDefault());
+      el.addEventListener("dragstart", (e) => e.preventDefault());
+    });
+
+    // Hold-to-confirm: selected tile keeps wobbling until confirmed
+    document.querySelectorAll(".tile[data-target]").forEach(tile => {
+      const tid = parseInt(tile.getAttribute("data-target"), 10);
+      const disabled = tile.getAttribute("data-disabled") === "1";
+      const bar = tile.querySelector(".tileHoldBar");
+
+      let holding = false;
+      let startedAt = 0;
+      let raf = null;
+      let completed = false;
+
+      const resetBar = () => { if (bar) bar.style.width = "0%"; };
+
+      const update = () => {
+        if (!holding) return;
+        const elapsed = performance.now() - startedAt;
+        const p = Math.min(1, elapsed / 500);
+        if (bar) bar.style.width = (p * 100).toFixed(1) + "%";
+
+        if (p >= 1 && !completed) {
+          completed = true;
+          holding = false;
+          if (raf) cancelAnimationFrame(raf);
+
+          tile.classList.add("popping");
+          hapticTick(18);
+
+          setTimeout(() => {
+            tile.classList.remove("popping");
+            clearTextSelection();     // before render
+
+            registerVote(currentVoterId, tid);
+            state.voteCursor += 1;
+            state.voteSelectedTarget = null;
+            save();
+            render();
+
+            clearTextSelection();     // after render
+          }, 120);
+        } else {
+          raf = requestAnimationFrame(update);
+        }
+      };
+
+      const start = (e) => {
+        if (e.cancelable) e.preventDefault();
+        clearTextSelection();
+        if (disabled) { toast("자기 자신은 지목할 수 없어요."); return; }
+        if (completed) return;
+
+        // selection stays
+        state.voteSelectedTarget = tid;
+        save();
+
+        document.querySelectorAll(".tile.selected").forEach(el => el.classList.remove("selected"));
+        tile.classList.add("selected");
+
+        holding = true;
+        startedAt = performance.now();
+        completed = false;
+        resetBar();
+        raf = requestAnimationFrame(update);
+      };
+
+      const end = (e) => {
+        if (e.cancelable) e.preventDefault();
+        clearTextSelection();
+        if (!holding) return;
+        holding = false;
+        if (raf) cancelAnimationFrame(raf);
+        if (!completed) resetBar();
+      };
+
+      tile.addEventListener("pointerdown", start, { passive:false });
+      tile.addEventListener("pointerup", end, { passive:false });
+      tile.addEventListener("pointercancel", end, { passive:false });
+      tile.addEventListener("pointerleave", end, { passive:false });
+    });
+
+    document.getElementById("undo").onclick = () => {
+      if (state.voteCursor <= 0) { toast("되돌릴 차례가 없어요."); return; }
+      const prevVoterId = voters[state.voteCursor - 1];
+      delete state.votes[prevVoterId];
+      rebuildAccusationsFromVotes();
+      state.voteCursor -= 1;
+      state.voteSelectedTarget = null;
+      save();
+      clearTextSelection();
+      toast("한 차례 되돌렸어요.");
+      render();
+    };
+
+    document.getElementById("cancel").onclick = () => {
+      if (confirm("지목을 취소하고 라운드 화면으로 돌아갈까요? (입력된 지목은 초기화됩니다)")) {
+        state.votes = {};
+        state.accusations = {};
+        state.voteOrder = [];
+        state.voteCursor = 0;
+        state.voteSelectedTarget = null;
+        state._voteCursorSeen = -1;
+        save();
+        clearTextSelection();
+        setPhase("ROUND_SETUP");
+      }
+    };
+  }
+
+  function renderResult() {
+    const acc = state._lastAccusationCount ?? 0;
+    const bonusApplied = acc <= 1;
+
+    $app.innerHTML = `
+      <div class="card">
+        <h1>라운드 ${state.round} 결과</h1>
+
+        <p><b>라이어:</b> ${pmarkHTML(state.liarId)}</p>
+        <p><b>제시자:</b> ${pmarkHTML(state.hostId)}</p>
+        <p><b>라이어 지목 수:</b> ${acc}명</p>
+        <p><b>보너스:</b> ${bonusApplied ? "적용 (라이어 +5, 제시자 +4)" : "미적용"}</p>
+
+        <div class="divider"></div>
+        <h2>점수표</h2>
+        ${renderScoreTable()}
+
+        <button class="btn" id="nextRound">다음 라운드</button>
+        <button class="btn secondary" id="setup">라운드 설정으로</button>
+        <button class="btn danger" id="reset">게임 초기화</button>
+
+        ${renderGameEndHint()}
+      </div>
+    `;
+
+    document.getElementById("nextRound").onclick = () => {
+      if (state.totalRounds > 0 && state.round >= state.totalRounds) {
+        toast("설정한 총 라운드 수에 도달했습니다. (홈에서 변경 가능)");
+        setPhase("HOME");
+        return;
+      }
+      nextRound();
+    };
+
+    document.getElementById("setup").onclick = () => setPhase("ROUND_SETUP");
+    document.getElementById("reset").onclick = () => {
+      if (confirm("정말 초기화할까요?")) resetAll();
+    };
+  }
+
+  function renderScoreTable() {
+    let rows = "";
+    for (let i=1;i<=state.N;i++) {
+      const p = playerById(i);
+      const c = p?.color || colorForId(i);
+      const bg = hexToRgba(c, 0.25);
+      rows += `
+        <tr>
+          <td>
+            <span class="pmark" style="--c:${c};--bg:${bg}">
+              <span class="dot" style="--c:${c}"></span>
+              <span>${escapeHtml(p?.name ?? `Player ${i}`)}</span>
+              <span class="pno">${i}번</span>
+            </span>
+          </td>
+          <td style="font-weight:900;">${p?.score ?? 0}</td>
+        </tr>
+      `;
+    }
+    return `
+      <table>
+        <thead><tr><th>플레이어</th><th>점수</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  function renderScoreTableCard() {
+    return `
+      <div class="card">
+        <h2>점수표</h2>
+        ${renderScoreTable()}
+      </div>
+    `;
+  }
+
+  function renderGameEndHint() {
+    if (state.totalRounds > 0) {
+      return `<p class="muted">총 라운드 수: ${state.totalRounds} · 현재: ${state.round}</p>`;
+    }
+    return `<p class="muted">총 라운드 수: 무제한</p>`;
+  }
+
+  function escapeHtml(str) {
+    return (str ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;");
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
