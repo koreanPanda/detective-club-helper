@@ -242,7 +242,7 @@
 
 <script>
 (() => {
-  const STORAGE_KEY = "dc_helper_v9_final";
+  const STORAGE_KEY = "dc_helper_v10_buffer_keep_no_back";
 
   const PASTELS = [
     "#FFD6A5","#FDFFB6","#CAFFBF","#9BF6FF","#A0C4FF",
@@ -562,6 +562,7 @@
       case "HOME": return renderHome();
       case "ROUND_SETUP": return renderRoundSetup();
       case "REVEAL": return renderReveal();
+      case "PASS_NEXT": return renderPassNext();
       case "PLAY_START": return renderPlayStart();
       case "VOTING_TOKENS": return renderVotingTokens();
       case "RESULT": return renderResult();
@@ -785,14 +786,12 @@
       confirmBtn.disabled=false;
     }
 
-    // ✅ 변경: confirm 누르면 PASS_NEXT 화면 없이 바로 다음 사람/완료로 이동
     confirmBtn.onclick=()=>{
       if(!state.revealed[currentId]){ toast("먼저 2초간 눌러 확인해 주세요."); return; }
-      state.cursor += 1;
-      save();
-      setPhase("REVEAL"); // cursor가 끝이면 renderReveal에서 PLAY_START로 넘어감
+      setPhase("PASS_NEXT"); // ✅ 버퍼 페이지로 이동
     };
 
+    // ✅ 유지: confirm 팝업으로 실수 방지
     document.getElementById("abort").onclick=()=>{
       if(confirm("리빌을 중단하고 라운드 설정으로 돌아갈까요? (이번 라운드 진행은 초기화됩니다)")){
         state.revealOrder=[];
@@ -806,6 +805,35 @@
         save();
         setPhase("ROUND_SETUP");
       }
+    };
+  }
+
+  function renderPassNext(){
+    const order = state.revealOrder || [];
+    const total = order.length;
+    const currentId = order[state.cursor];
+    const nextId = (state.cursor + 1 < total) ? order[state.cursor + 1] : state.hostId;
+
+    $app.innerHTML = `
+      <div class="card">
+        <h1 class="center">다음 사람에게 넘기기</h1>
+        <p class="center">이 화면 그대로 <b>다음 사용자에게 휴대폰을 넘겨주세요.</b></p>
+
+        <p class="muted center">
+          방금 확인: ${pmarkHTML(currentId)}
+          · 다음 사용자: ${pmarkHTML(nextId)}
+          · 진행: ${state.cursor+1}/${total}
+        </p>
+
+        <button class="btn" id="next">${state.cursor + 1 < total ? "다음 참가자 시작" : "제시자에게 넘기기"}</button>
+        <!-- ✅ 이전 화면 버튼 삭제 -->
+      </div>
+    `;
+
+    document.getElementById("next").onclick = () => {
+      state.cursor += 1;
+      save();
+      setPhase("REVEAL");
     };
   }
 
