@@ -177,47 +177,79 @@
     .rouletteName{ font-size:24px; font-weight:1000; letter-spacing:.2px; }
     .rouletteSub{ opacity:.85; margin-top:8px; font-size:13px; }
 
-    /* ✅ Border light sweep highlight (player color) */
-    .rouletteBox.borderGlow{
-      position:relative;
-      overflow:hidden;
-    }
-    .rouletteBox.borderGlow::before{
+    /* ===== Border light sweep highlight (GOOD VERSION) ===== */
+.rouletteBox.borderGlow{
+  position:relative;
+  overflow:hidden;
+}
+
+    /* 2-layer glow: sharp core + soft bloom */
+    .rouletteBox.borderGlow::before,
+    .rouletteBox.borderGlow::after{
       content:"";
       position:absolute;
-      inset:-6px;
+      inset:-7px;
       border-radius:22px;
-      padding:3px; /* ring thickness */
-      background:conic-gradient(
-        from 0deg,
-        rgba(0,0,0,0) 0deg,
-        rgba(0,0,0,0) 240deg,
-        var(--glow, #ffffff) 300deg,
-        rgba(0,0,0,0) 360deg
-      );
-
+      padding:3px;                /* ring thickness */
+      pointer-events:none;
+    
       /* show only border ring */
       -webkit-mask:
         linear-gradient(#000 0 0) content-box,
         linear-gradient(#000 0 0);
       -webkit-mask-composite:xor;
       mask-composite:exclude;
-
-      filter: blur(0.6px);
+    
       opacity:0;
-      transform: rotate(0deg);
-      pointer-events:none;
+      transform:rotate(0deg);
     }
-    .rouletteBox.borderGlow.runGlow::before{
+    
+    /* core (선명한 하이라이트) */
+    .rouletteBox.borderGlow::before{
+      /* 작은 호 + 꼬리 (arc + tail) */
+      background: conic-gradient(
+        from 0deg,
+        transparent 0deg,
+        transparent 300deg,
+        rgba(255,255,255,0.0) 300deg,
+        rgba(255,255,255,0.0) 318deg,
+        var(--glow, #fff) 330deg,
+        rgba(255,255,255,0.0) 342deg,
+        transparent 360deg
+      );
+      filter: blur(0.4px);
+      mix-blend-mode: screen;
+    }
+    
+    /* bloom (부드러운 번짐) */
+    .rouletteBox.borderGlow::after{
+      background: conic-gradient(
+        from 0deg,
+        transparent 0deg,
+        transparent 302deg,
+        rgba(255,255,255,0.0) 302deg,
+        color-mix(in srgb, var(--glow, #fff) 55%, transparent) 330deg,
+        rgba(255,255,255,0.0) 352deg,
+        transparent 360deg
+      );
+      filter: blur(4px);
+      mix-blend-mode: screen;
+    }
+    
+    /* run */
+    .rouletteBox.borderGlow.runGlow::before,
+    .rouletteBox.borderGlow.runGlow::after{
       opacity:1;
       animation: borderSweep 1.25s ease-out 1;
     }
+    
     @keyframes borderSweep{
       0%   { transform: rotate(0deg);   opacity:0; }
-      8%   { opacity:1; }
+      10%  { opacity:1; }
       85%  { opacity:1; }
       100% { transform: rotate(360deg); opacity:0; }
     }
+
 
     .deltaList{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
     .deltaRow{
