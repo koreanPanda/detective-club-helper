@@ -31,6 +31,7 @@
       font-size: 16px;
       outline: none;
       background: #fff;
+      color:#111;
     }
     input:focus, select:focus { border-color:#7aa7ff; box-shadow:0 0 0 3px rgba(122,167,255,.25); }
     .btn {
@@ -118,6 +119,38 @@
     }
     .pno { font-weight: 800; color:#333; opacity:.75; font-size: 12px; }
 
+    /* Name entry: placeholder-like default that clears on first focus */
+    .nameInput.defaultName {
+      color: #9aa0ad;
+      font-weight: 700;
+    }
+    .nameInput.realName {
+      color: #111;
+      font-weight: 800;
+    }
+
+    /* Colored small token for "1번" etc in name list */
+    .numToken{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:72px;
+      height: 40px;
+      padding: 0 12px;
+      border-radius: 999px;
+      font-weight: 900;
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 6px 18px rgba(0,0,0,.06);
+      background: var(--bg, #f0f2f9);
+      color:#111;
+      gap:8px;
+    }
+    .numToken .dot{
+      width: 10px; height: 10px; border-radius:999px;
+      background: var(--c, #111);
+      box-shadow: 0 2px 6px rgba(0,0,0,.12);
+    }
+
     /* Voting tokens UI */
     .tiles { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; margin-top:12px; }
     @media (max-width: 420px) { .tiles { grid-template-columns: 1fr; } }
@@ -130,9 +163,7 @@
       cursor:pointer;
       user-select:none;
       position:relative;
-      transition: transform .05s ease;
     }
-    .tile:active { transform: translateY(1px); }
     .tileTitle { font-weight:900; font-size:16px; margin:0; }
     .tileSub { font-size:12px; color:#666; margin-top:4px; }
     .tokenStack { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; align-items:center; }
@@ -153,15 +184,58 @@
       cursor:pointer;
       user-select:none;
     }
-    .chip:active { transform: translateY(1px); }
 
-    /* Disabled target tile (e.g., cannot vote for self) */
+    /* Disabled target tile */
     .tile.disabled{
       opacity: .45;
       cursor: not-allowed;
       box-shadow: none;
     }
-    .tile.disabled:active{ transform:none; }
+
+    /* Hold-to-vote bar (0.5s) */
+    .tileHoldBarWrap{
+      height: 8px;
+      background:#eef0f6;
+      border-radius:999px;
+      overflow:hidden;
+      margin-top:10px;
+    }
+    .tileHoldBar{
+      height: 8px;
+      width: 0%;
+      background:#111;
+      transition: width 0.05s linear;
+    }
+    .tileHoldHint{
+      font-size: 12px;
+      color:#666;
+      margin-top:8px;
+      text-align:center;
+    }
+
+    /* Wobble + Pop for vote tiles */
+    @keyframes wobble {
+      0%   { transform: translateX(0) rotate(0deg); }
+      15%  { transform: translateX(-1px) rotate(-0.6deg); }
+      30%  { transform: translateX(1px) rotate(0.6deg); }
+      45%  { transform: translateX(-1px) rotate(-0.6deg); }
+      60%  { transform: translateX(1px) rotate(0.6deg); }
+      75%  { transform: translateX(-0.5px) rotate(-0.3deg); }
+      100% { transform: translateX(0) rotate(0deg); }
+    }
+    @keyframes pop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(0.97); }
+      100% { transform: scale(1.02); }
+    }
+    .tile.wobbling{
+      animation: wobble 140ms linear infinite;
+      border-color: rgba(0,0,0,.20);
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
+    }
+    .tile.popping{
+      animation: pop 120ms ease-out 1;
+    }
   </style>
 </head>
 <body>
@@ -169,7 +243,7 @@
 
 <script>
 (() => {
-  const STORAGE_KEY = "dc_helper_v4_colors";
+  const STORAGE_KEY = "dc_helper_v6_names";
 
   const PASTELS = [
     "#FFD6A5", "#FDFFB6", "#CAFFBF", "#9BF6FF", "#A0C4FF",
@@ -180,20 +254,20 @@
 
   const defaultState = {
     N: 6,
-    totalRounds: 0,      // 0 = 무제한
+    totalRounds: 0,
     round: 1,
     phase: "HOME",
-    players: [],         // [{id, name, score, color}]
+    players: [],         // {id, name, score, color, isDefaultName}
     hostId: 1,
-    liarId: null,        // 랜덤 배정 (제시자 제외)
+    liarId: null,
     keyword: "",
     revealOrder: [],
     cursor: 0,
-    revealed: {},        // {playerId:true}
+    revealed: {},
     voteOrder: [],
     voteCursor: 0,
-    votes: {},           // {voterId: targetId}
-    accusations: {},     // {targetId: count} (derived, kept for convenience)
+    votes: {},
+    accusations: {},
     _lastAccusationCount: 0,
   };
 
@@ -203,10 +277,15 @@
     const s = structuredClone(defaultState);
     s.players = [];
     for (let i = 1; i <= s.N; i++) {
-      s.players.push({ id: i, name: `Player ${i}`, score: 0, color: colorForId(i) });
+      s.players.push({
+        id: i,
+        name: `Player ${i}`,
+        score: 0,
+        color: colorForId(i),
+        isDefaultName: true
+      });
     }
     s.hostId = 1;
-    s.liarId = null;
     return s;
   }
 
@@ -217,9 +296,13 @@
       if (!raw) return null;
       const obj = JSON.parse(raw);
 
-      // Backfill colors if older save
+      // Backfill
       if (obj?.players?.length) {
-        obj.players = obj.players.map(p => ({...p, color: p.color || colorForId(p.id)}));
+        obj.players = obj.players.map(p => ({
+          ...p,
+          color: p.color || colorForId(p.id),
+          isDefaultName: (typeof p.isDefaultName === "boolean") ? p.isDefaultName : isLooksLikeDefault(p.name, p.id),
+        }));
       }
       return obj;
     } catch { return null; }
@@ -232,23 +315,16 @@
     render();
   }
 
-  // Back navigation guard (lightweight)
+  // back navigation guard
   history.pushState({locked:true}, "");
   window.addEventListener("popstate", () => {
     history.pushState({locked:true}, "");
     toast("뒤로가기는 비활성화되어 있어요. (치팅 방지)");
   });
 
-  // -----------------------------
-  // Helpers
-  // -----------------------------
   const $app = document.getElementById("app");
 
-  function setPhase(phase) {
-    state.phase = phase;
-    save();
-    render();
-  }
+  function setPhase(phase) { state.phase = phase; save(); render(); }
 
   function clampInt(v, min, max, fallback) {
     const n = parseInt(v, 10);
@@ -256,16 +332,11 @@
     return Math.min(max, Math.max(min, n));
   }
 
-  function colorForId(id) {
-    // stable pastel by id (1-indexed)
-    return PASTELS[(id - 1) % PASTELS.length];
-  }
+  function colorForId(id) { return PASTELS[(id - 1) % PASTELS.length]; }
 
   function hexToRgba(hex, a) {
     const h = (hex || "").replace("#", "");
-    const v = h.length === 3
-      ? h.split("").map(ch => ch + ch).join("")
-      : h;
+    const v = h.length === 3 ? h.split("").map(ch => ch + ch).join("") : h;
     const r = parseInt(v.slice(0,2), 16);
     const g = parseInt(v.slice(2,4), 16);
     const b = parseInt(v.slice(4,6), 16);
@@ -289,23 +360,28 @@
     `;
   }
 
+  function numTokenHTML(id) {
+    const c = pcolor(id);
+    const bg = hexToRgba(c, 0.28);
+    return `
+      <div class="numToken" style="--c:${c};--bg:${bg}">
+        <span class="dot" style="--c:${c}"></span>
+        <span>${id}번</span>
+      </div>
+    `;
+  }
+
   function makeOrderExcluding(N, excludeId) {
     const arr = [];
     for (let i=1; i<=N; i++) if (i !== excludeId) arr.push(i);
     return arr;
   }
-
   function nextHostId(host, N) { return (host % N) + 1; }
-
-  function pickRandom(arr) {
-    if (!arr || arr.length === 0) return null;
-    const idx = Math.floor(Math.random() * arr.length);
-    return arr[idx];
-  }
+  function pickRandom(arr) { return arr?.length ? arr[Math.floor(Math.random() * arr.length)] : null; }
 
   function startRound() {
     state.keyword = (state.keyword || "").trim();
-    state.revealOrder = makeOrderExcluding(state.N, state.hostId); // 제시자 제외
+    state.revealOrder = makeOrderExcluding(state.N, state.hostId);
     state.cursor = 0;
     state.revealed = {};
     state.votes = {};
@@ -313,19 +389,15 @@
     state.voteOrder = [];
     state.voteCursor = 0;
 
-    // ✅ Liar is random among non-host players
     state.liarId = pickRandom(state.revealOrder);
 
     save();
     setPhase("REVEAL");
   }
 
-  function finishReveal() {
-    setPhase("PLAY_START");
-  }
+  function finishReveal() { setPhase("PLAY_START"); }
 
   function startVoting() {
-    // 투표는 제시자 제외 플레이어만
     state.voteOrder = makeOrderExcluding(state.N, state.hostId);
     state.voteCursor = 0;
     state.votes = {};
@@ -344,7 +416,6 @@
   }
 
   function registerVote(voterId, targetId) {
-    // overwrite allowed
     state.votes[voterId] = targetId;
     rebuildAccusationsFromVotes();
   }
@@ -352,10 +423,8 @@
   function applyScoring() {
     const hostId = state.hostId;
     const liarId = state.liarId;
-
     const accusationCount = state.accusations[liarId] || 0;
 
-    // Everyone who voted liar gets +3
     for (const voterIdStr of Object.keys(state.votes)) {
       const voterId = parseInt(voterIdStr, 10);
       if (voterId === hostId) continue;
@@ -365,7 +434,6 @@
       }
     }
 
-    // If liar got <= 1 accusation: liar +5, host +4
     if (accusationCount <= 1) {
       const liar = playerById(liarId);
       const host = playerById(hostId);
@@ -404,16 +472,23 @@
     const next = [];
     for (let i=1;i<=newN;i++) {
       const old = prev.get(i);
+      const name = old?.name ?? `Player ${i}`;
+      const isDef = (typeof old?.isDefaultName === "boolean") ? old.isDefaultName : isLooksLikeDefault(name, i);
       next.push({
         id: i,
-        name: old?.name ?? `Player ${i}`,
+        name,
         score: old?.score ?? 0,
         color: old?.color ?? colorForId(i),
+        isDefaultName: isDef
       });
     }
     state.players = next;
     state.N = newN;
     if (state.hostId > newN) state.hostId = 1;
+  }
+
+  function isLooksLikeDefault(name, id) {
+    return (name || "").trim() === `Player ${id}`;
   }
 
   // Toast
@@ -442,7 +517,13 @@
     toastTimer = setTimeout(() => { el.style.display = "none"; }, 1600);
   }
 
-  // Long press (2s) -> reveal stays
+  function hapticTick(ms = 18) {
+    try {
+      if (navigator.vibrate) navigator.vibrate(ms);
+    } catch {}
+  }
+
+  // Reveal long press (2s)
   function attachLongPressOnce(container, onCompleted) {
     let holding = false;
     let startedAt = 0;
@@ -490,9 +571,68 @@
     container.addEventListener("pointerleave", end, {passive:false});
   }
 
-  // -----------------------------
+  // Hold-to-select (0.5s) with wobble/pop + haptic if supported
+  function attachHoldToSelect(tileEl, durationMs, onCompleted) {
+    let holding = false;
+    let startedAt = 0;
+    let raf = null;
+    let completed = false;
+
+    const bar = tileEl.querySelector(".tileHoldBar");
+
+    const stop = () => {
+      holding = false;
+      tileEl.classList.remove("wobbling");
+      if (raf) cancelAnimationFrame(raf);
+    };
+
+    const update = () => {
+      if (!holding) return;
+      const elapsed = performance.now() - startedAt;
+      const p = Math.min(1, elapsed / durationMs);
+      if (bar) bar.style.width = (p * 100).toFixed(1) + "%";
+
+      if (p >= 1 && !completed) {
+        completed = true;
+        stop();
+
+        tileEl.classList.add("popping");
+        hapticTick(18);
+
+        setTimeout(() => {
+          tileEl.classList.remove("popping");
+          onCompleted();
+        }, 120);
+      } else {
+        raf = requestAnimationFrame(update);
+      }
+    };
+
+    const start = (e) => {
+      e.preventDefault();
+      if (completed) return;
+      if (tileEl.getAttribute("data-disabled") === "1") return;
+
+      holding = true;
+      startedAt = performance.now();
+      if (bar) bar.style.width = "0%";
+      tileEl.classList.add("wobbling");
+      raf = requestAnimationFrame(update);
+    };
+
+    const end = (e) => {
+      e.preventDefault();
+      if (!holding) return;
+      stop();
+    };
+
+    tileEl.addEventListener("pointerdown", start, { passive:false });
+    tileEl.addEventListener("pointerup", end, { passive:false });
+    tileEl.addEventListener("pointercancel", end, { passive:false });
+    tileEl.addEventListener("pointerleave", end, { passive:false });
+  }
+
   // Render
-  // -----------------------------
   function render() {
     switch (state.phase) {
       case "HOME": return renderHome();
@@ -543,22 +683,65 @@
     function renderNameInputs(n) {
       let html = "";
       for (let i=1;i<=n;i++) {
-        const p = state.players.find(x => x.id === i);
+        const p = playerById(i);
+        const cls = p?.isDefaultName ? "nameInput defaultName" : "nameInput realName";
         html += `
           <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
-            <div class="pill" style="min-width:72px; justify-content:center;">${i}번</div>
-            <input data-pid="${i}" value="${escapeHtml(p?.name ?? `Player ${i}`)}" placeholder="이름" />
+            ${numTokenHTML(i)}
+            <input class="${cls}" data-pid="${i}" value="${escapeHtml(p?.name ?? `Player ${i}`)}" />
           </div>
         `;
       }
       nameList.innerHTML = html;
 
       nameList.querySelectorAll("input[data-pid]").forEach(inp => {
+        inp.addEventListener("focus", (e) => {
+          const id = parseInt(e.target.getAttribute("data-pid"), 10);
+          const p = playerById(id);
+          if (!p) return;
+
+          // ✅ if still default, clear immediately on first focus
+          if (p.isDefaultName) {
+            e.target.value = "";
+          }
+        });
+
         inp.addEventListener("input", (e) => {
           const id = parseInt(e.target.getAttribute("data-pid"), 10);
-          const p = state.players.find(x => x.id === id);
-          if (p) p.name = e.target.value;
+          const p = playerById(id);
+          if (!p) return;
+
+          const v = e.target.value;
+          p.name = v;
+          // once user types something non-empty, it's no longer default
+          if (v.trim().length > 0) {
+            p.isDefaultName = false;
+            e.target.classList.remove("defaultName");
+            e.target.classList.add("realName");
+          } else {
+            // if emptied, keep as default-ish state but don't reinsert Player i immediately
+            // user can leave empty; we will auto-fill later on start.
+            p.isDefaultName = true;
+            e.target.classList.add("defaultName");
+            e.target.classList.remove("realName");
+          }
           save();
+        });
+
+        inp.addEventListener("blur", (e) => {
+          const id = parseInt(e.target.getAttribute("data-pid"), 10);
+          const p = playerById(id);
+          if (!p) return;
+
+          // If left empty, restore default label for readability
+          if ((e.target.value || "").trim().length === 0) {
+            p.name = `Player ${id}`;
+            p.isDefaultName = true;
+            e.target.value = p.name;
+            e.target.classList.add("defaultName");
+            e.target.classList.remove("realName");
+            save();
+          }
         });
       });
     }
@@ -584,13 +767,20 @@
       state.keyword = "";
       state.liarId = null;
 
-      // reset scores (new game)
-      state.players = state.players.map(p => ({
-        ...p,
-        score: 0,
-        color: p.color || colorForId(p.id),
-        name: (p.name||"").trim() || `Player ${p.id}`
-      }));
+      // Reset scores (new game) + ensure names
+      state.players = state.players.map(p => {
+        const name = (p.name || "").trim();
+        const finalName = name.length ? name : `Player ${p.id}`;
+        const isDef = p.isDefaultName ?? isLooksLikeDefault(finalName, p.id);
+        return ({
+          ...p,
+          score: 0,
+          color: p.color || colorForId(p.id),
+          name: finalName,
+          isDefaultName: isDef,
+        });
+      });
+
       save();
       setPhase("ROUND_SETUP");
     };
@@ -648,7 +838,7 @@
 
   function renderReveal() {
     const order = state.revealOrder || [];
-    const total = order.length; // N-1
+    const total = order.length;
     if (state.cursor >= total) { finishReveal(); return; }
 
     const currentId = order[state.cursor];
@@ -688,7 +878,7 @@
         state.revealed[currentId] = true;
         save();
         revealBox.style.opacity = "1";
-        revealBox.textContent = secretText; // stays visible
+        revealBox.textContent = secretText;
         confirmBtn.disabled = false;
         toast("확인 완료!");
       });
@@ -716,18 +906,25 @@
     };
   }
 
+  // ✅ PASS_NEXT includes next user
   function renderPassNext() {
     const order = state.revealOrder || [];
     const total = order.length;
     const currentId = order[state.cursor];
+    const nextId = (state.cursor + 1 < total) ? order[state.cursor + 1] : state.hostId;
 
     $app.innerHTML = `
       <div class="card">
         <h1 class="center">다음 사람에게 넘기기</h1>
         <p class="center">이 화면 그대로 <b>다음 사용자에게 휴대폰을 넘겨주세요.</b></p>
-        <p class="muted center">방금 확인: ${pmarkHTML(currentId)} · 진행: ${state.cursor+1}/${total}</p>
 
-        <button class="btn" id="next">다음 참가자 시작</button>
+        <p class="muted center">
+          방금 확인: ${pmarkHTML(currentId)}
+          · 다음 사용자: ${pmarkHTML(nextId)}
+          · 진행: ${state.cursor+1}/${total}
+        </p>
+
+        <button class="btn" id="next">${state.cursor + 1 < total ? "다음 참가자 시작" : "제시자에게 넘기기"}</button>
         <button class="btn secondary" id="back">이전 화면</button>
       </div>
     `;
@@ -761,11 +958,7 @@
 
   function renderVotingTokens() {
     const voters = state.voteOrder || [];
-
-    // target list: host 제외
-    const targets = state.players
-      .filter(p => p.id !== state.hostId)
-      .map(p => p.id);
+    const targets = state.players.filter(p => p.id !== state.hostId).map(p => p.id);
 
     if (state.voteCursor >= voters.length) {
       finishVoting();
@@ -774,39 +967,35 @@
 
     const currentVoterId = voters[state.voteCursor];
 
-    // Build token stacks by target (colored by voter)
     const tokenStacks = {};
-    for (const [voterStr, targetIdStr] of Object.entries(state.votes)) {
+    for (const [voterStr, targetStr] of Object.entries(state.votes)) {
       const voterId = parseInt(voterStr, 10);
-      const targetId = parseInt(targetIdStr, 10);
+      const targetId = parseInt(targetStr, 10);
       tokenStacks[targetId] = tokenStacks[targetId] || [];
       tokenStacks[targetId].push(voterId);
     }
 
-    const countFor = (tid) => (tokenStacks[tid]?.length || 0);
-
     const tilesHtml = targets.map(tid => {
-      const count = countFor(tid);
       const votersForThis = tokenStacks[tid] || [];
+      const count = votersForThis.length;
       const tokens = votersForThis.slice(0, 14).map(vId => {
         const c = pcolor(vId);
         return `<span class="token" style="--c:${c}" title="${escapeHtml(playerById(vId)?.name || vId)}"></span>`;
       }).join("");
       const more = count > 14 ? `<span class="muted" style="font-weight:900;">+${count-14}</span>` : "";
-
-      // ✅ self-vote disabled
       const isDisabled = (tid === currentVoterId);
+
       return `
         <div class="tile ${isDisabled ? "disabled" : ""}" data-target="${tid}" data-disabled="${isDisabled ? "1" : "0"}">
           <div class="badge">${count}</div>
           <div class="tileTitle">${pmarkHTML(tid, true)}</div>
           <div class="tileSub">${tid}번</div>
           <div class="tokenStack">${tokens}${more}</div>
+          <div class="tileHoldBarWrap"><div class="tileHoldBar"></div></div>
         </div>
       `;
     }).join("");
 
-    // 공개 로그(선택): 누가 누구 찍었는지
     const chips = Object.entries(state.votes)
       .map(([voterStr, targetId]) => {
         const v = parseInt(voterStr, 10);
@@ -822,7 +1011,8 @@
         </div>
 
         <p class="big center">지금 차례: ${pmarkHTML(currentVoterId)}</p>
-        <p class="center muted">아래에서 라이어라고 생각하는 사람을 <b>한 번 탭</b>하세요. (자기 자신은 선택 불가)</p>
+        <p class="center muted">아래에서 라이어라고 생각하는 사람을 <b>0.5초간 꾹</b> 눌러 지목하세요. (자기 자신은 선택 불가)</p>
+        <div class="tileHoldHint">짧게 탭하면 선택되지 않습니다.</div>
 
         <div class="tiles">${tilesHtml}</div>
 
@@ -839,15 +1029,13 @@
       </div>
     `;
 
-    // Click target tile
     document.querySelectorAll(".tile[data-target]").forEach(tile => {
-      tile.addEventListener("click", () => {
+      attachHoldToSelect(tile, 500, () => {
         if (tile.getAttribute("data-disabled") === "1") {
           toast("자기 자신은 지목할 수 없어요.");
           return;
         }
         const targetId = parseInt(tile.getAttribute("data-target"), 10);
-
         registerVote(currentVoterId, targetId);
         state.voteCursor += 1;
         save();
@@ -969,7 +1157,6 @@
       .replaceAll('"',"&quot;");
   }
 
-  // Boot
   render();
 })();
 </script>
