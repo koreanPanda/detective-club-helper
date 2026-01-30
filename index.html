@@ -96,6 +96,28 @@
       padding:10px 12px; border-radius:12px;
     }
 
+    /* Player highlight */
+    .pmark{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 900;
+      color:#111;
+      background: var(--bg, #f0f2f9);
+      border: 1px solid rgba(0,0,0,.06);
+      box-shadow: 0 6px 18px rgba(0,0,0,.06);
+      white-space: nowrap;
+    }
+    .dot{
+      width: 10px; height: 10px; border-radius:999px;
+      background: var(--c, #111);
+      box-shadow: 0 2px 6px rgba(0,0,0,.12);
+      flex: 0 0 auto;
+    }
+    .pno { font-weight: 800; color:#333; opacity:.75; font-size: 12px; }
+
     /* Voting tokens UI */
     .tiles { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; margin-top:12px; }
     @media (max-width: 420px) { .tiles { grid-template-columns: 1fr; } }
@@ -113,10 +135,11 @@
     .tile:active { transform: translateY(1px); }
     .tileTitle { font-weight:900; font-size:16px; margin:0; }
     .tileSub { font-size:12px; color:#666; margin-top:4px; }
-    .tokenStack { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .tokenStack { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; align-items:center; }
     .token{
-      width: 12px; height: 12px; border-radius:999px; background:#111;
-      box-shadow: 0 2px 6px rgba(0,0,0,.2);
+      width: 12px; height: 12px; border-radius:999px;
+      background: var(--c, #111);
+      box-shadow: 0 2px 6px rgba(0,0,0,.18);
     }
     .badge{
       position:absolute; top:10px; right:10px;
@@ -131,6 +154,14 @@
       user-select:none;
     }
     .chip:active { transform: translateY(1px); }
+
+    /* Disabled target tile (e.g., cannot vote for self) */
+    .tile.disabled{
+      opacity: .45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .tile.disabled:active{ transform:none; }
   </style>
 </head>
 <body>
@@ -138,30 +169,31 @@
 
 <script>
 (() => {
-  // -----------------------------
-  // State
-  // -----------------------------
-  const STORAGE_KEY = "dc_helper_v2";
+  const STORAGE_KEY = "dc_helper_v4_colors";
+
+  const PASTELS = [
+    "#FFD6A5", "#FDFFB6", "#CAFFBF", "#9BF6FF", "#A0C4FF",
+    "#BDB2FF", "#FFC6FF", "#FFADAD", "#CDEAC0", "#B9FBC0",
+    "#D0F4DE", "#FDE2E4", "#E2F0CB", "#CFBAF0", "#F1C0E8",
+    "#F9F9C5", "#BEE1E6", "#EAC4D5", "#C6DEF1", "#F2C6DE"
+  ];
+
   const defaultState = {
     N: 6,
     totalRounds: 0,      // 0 = 무제한
     round: 1,
     phase: "HOME",
-
-    players: [],         // [{id, name, score}]
-    // round-specific
+    players: [],         // [{id, name, score, color}]
     hostId: 1,
-    liarId: 2,
+    liarId: null,        // 랜덤 배정 (제시자 제외)
     keyword: "",
-
     revealOrder: [],
     cursor: 0,
     revealed: {},        // {playerId:true}
-    // voting
     voteOrder: [],
     voteCursor: 0,
-    votes: {},           // {voterId: targetId} (visible log)
-    accusations: {},     // {targetId: count}
+    votes: {},           // {voterId: targetId}
+    accusations: {},     // {targetId: count} (derived, kept for convenience)
     _lastAccusationCount: 0,
   };
 
@@ -170,9 +202,11 @@
   function initDefault() {
     const s = structuredClone(defaultState);
     s.players = [];
-    for (let i = 1; i <= s.N; i++) s.players.push({ id: i, name: `Player ${i}`, score: 0 });
+    for (let i = 1; i <= s.N; i++) {
+      s.players.push({ id: i, name: `Player ${i}`, score: 0, color: colorForId(i) });
+    }
     s.hostId = 1;
-    s.liarId = Math.min(2, s.N);
+    s.liarId = null;
     return s;
   }
 
@@ -181,7 +215,13 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
-      return JSON.parse(raw);
+      const obj = JSON.parse(raw);
+
+      // Backfill colors if older save
+      if (obj?.players?.length) {
+        obj.players = obj.players.map(p => ({...p, color: p.color || colorForId(p.id)}));
+      }
+      return obj;
     } catch { return null; }
   }
 
@@ -216,14 +256,37 @@
     return Math.min(max, Math.max(min, n));
   }
 
-  function playerById(id) { return state.players.find(p => p.id === id); }
-  function pname(id) {
-    const p = playerById(id);
-    return p ? p.name : `${id}번`;
+  function colorForId(id) {
+    // stable pastel by id (1-indexed)
+    return PASTELS[(id - 1) % PASTELS.length];
   }
-  function pnameWithNo(id) {
+
+  function hexToRgba(hex, a) {
+    const h = (hex || "").replace("#", "");
+    const v = h.length === 3
+      ? h.split("").map(ch => ch + ch).join("")
+      : h;
+    const r = parseInt(v.slice(0,2), 16);
+    const g = parseInt(v.slice(2,4), 16);
+    const b = parseInt(v.slice(4,6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  }
+
+  function playerById(id) { return state.players.find(p => p.id === id); }
+  function pcolor(id) { return playerById(id)?.color || colorForId(id); }
+
+  function pmarkHTML(id, withNo=true) {
     const p = playerById(id);
-    return p ? `${p.name} (${id}번)` : `${id}번`;
+    const name = p?.name ?? `${id}번`;
+    const c = pcolor(id);
+    const bg = hexToRgba(c, 0.28);
+    return `
+      <span class="pmark" style="--c:${c};--bg:${bg}">
+        <span class="dot" style="--c:${c}"></span>
+        <span>${escapeHtml(name)}</span>
+        ${withNo ? `<span class="pno">${id}번</span>` : ``}
+      </span>
+    `;
   }
 
   function makeOrderExcluding(N, excludeId) {
@@ -234,16 +297,25 @@
 
   function nextHostId(host, N) { return (host % N) + 1; }
 
+  function pickRandom(arr) {
+    if (!arr || arr.length === 0) return null;
+    const idx = Math.floor(Math.random() * arr.length);
+    return arr[idx];
+  }
+
   function startRound() {
     state.keyword = (state.keyword || "").trim();
-    state.revealOrder = makeOrderExcluding(state.N, state.hostId);
+    state.revealOrder = makeOrderExcluding(state.N, state.hostId); // 제시자 제외
     state.cursor = 0;
     state.revealed = {};
-    // voting reset
     state.votes = {};
     state.accusations = {};
     state.voteOrder = [];
     state.voteCursor = 0;
+
+    // ✅ Liar is random among non-host players
+    state.liarId = pickRandom(state.revealOrder);
+
     save();
     setPhase("REVEAL");
   }
@@ -253,7 +325,7 @@
   }
 
   function startVoting() {
-    // voting is 공개. host 제외한 사람들만 투표 (룰)
+    // 투표는 제시자 제외 플레이어만
     state.voteOrder = makeOrderExcluding(state.N, state.hostId);
     state.voteCursor = 0;
     state.votes = {};
@@ -262,28 +334,32 @@
     setPhase("VOTING_TOKENS");
   }
 
-  function registerVote(voterId, targetId) {
-    // overwrite allowed: if voter already voted, remove old token then add new.
-    const prev = state.votes[voterId];
-    if (prev != null) {
-      state.accusations[prev] = Math.max(0, (state.accusations[prev] || 0) - 1);
+  function rebuildAccusationsFromVotes() {
+    const acc = {};
+    for (const [voterStr, targetId] of Object.entries(state.votes)) {
+      const tid = parseInt(targetId, 10);
+      acc[tid] = (acc[tid] || 0) + 1;
     }
+    state.accusations = acc;
+  }
+
+  function registerVote(voterId, targetId) {
+    // overwrite allowed
     state.votes[voterId] = targetId;
-    state.accusations[targetId] = (state.accusations[targetId] || 0) + 1;
+    rebuildAccusationsFromVotes();
   }
 
   function applyScoring() {
     const hostId = state.hostId;
     const liarId = state.liarId;
 
-    // accusationCount = number of voters who chose liar
     const accusationCount = state.accusations[liarId] || 0;
 
-    // Everyone who voted liar gets +3 (host doesn't vote by construction)
+    // Everyone who voted liar gets +3
     for (const voterIdStr of Object.keys(state.votes)) {
       const voterId = parseInt(voterIdStr, 10);
       if (voterId === hostId) continue;
-      if (state.votes[voterId] === liarId) {
+      if (parseInt(state.votes[voterId], 10) === liarId) {
         const p = playerById(voterId);
         if (p) p.score += 3;
       }
@@ -310,7 +386,8 @@
     state.round += 1;
     state.hostId = nextHostId(state.hostId, state.N);
     state.keyword = "";
-    // reset round vars
+    state.liarId = null;
+
     state.revealOrder = [];
     state.cursor = 0;
     state.revealed = {};
@@ -323,7 +400,6 @@
   }
 
   function ensurePlayersForN(newN) {
-    // Keep existing names/scores if possible
     const prev = new Map(state.players.map(p => [p.id, p]));
     const next = [];
     for (let i=1;i<=newN;i++) {
@@ -331,18 +407,16 @@
       next.push({
         id: i,
         name: old?.name ?? `Player ${i}`,
-        score: old?.score ?? 0
+        score: old?.score ?? 0,
+        color: old?.color ?? colorForId(i),
       });
     }
     state.players = next;
     state.N = newN;
-    // clamp host/liar
     if (state.hostId > newN) state.hostId = 1;
-    if (state.liarId > newN) state.liarId = Math.min(2, newN);
-    if (state.liarId === state.hostId) state.liarId = (state.hostId % newN) + 1;
   }
 
-  // Tiny toast
+  // Toast
   let toastTimer = null;
   function toast(msg) {
     const id = "toast";
@@ -368,9 +442,7 @@
     toastTimer = setTimeout(() => { el.style.display = "none"; }, 1600);
   }
 
-  // -----------------------------
-  // Long press logic (2s) -> reveal stays (no need to hide again)
-  // -----------------------------
+  // Long press (2s) -> reveal stays
   function attachLongPressOnce(container, onCompleted) {
     let holding = false;
     let startedAt = 0;
@@ -410,7 +482,6 @@
       if (!holding) return;
       holding = false;
       if (raf) cancelAnimationFrame(raf);
-      // keep progress where it stopped; user can try again
     };
 
     container.addEventListener("pointerdown", start, {passive:false});
@@ -440,12 +511,12 @@
     $app.innerHTML = `
       <div class="card">
         <h1>Detective Club Helper</h1>
-        <p class="muted">한 대의 폰으로 제시어/라이어 분배 + 공개 지목(토큰) + 자동 점수</p>
+        <p class="muted">디텍티브 클럽 보드게임 made by 베이오락실 with chatgpt</p>
         <div class="divider"></div>
 
         <div class="grid2">
           <div>
-            <label>참가자 수 (N)</label>
+            <label>참가자 수</label>
             <input id="N" inputmode="numeric" value="${state.N}" />
           </div>
           <div>
@@ -499,7 +570,6 @@
       ensurePlayersForN(n);
       save();
       renderNameInputs(n);
-      // rerender score card too
       document.querySelectorAll(".card")[1].outerHTML = renderScoreTableCard();
     });
 
@@ -511,12 +581,16 @@
       state.totalRounds = R;
       state.round = 1;
       state.hostId = 1;
-      state.liarId = Math.min(2, state.N);
-      if (state.liarId === state.hostId) state.liarId = (state.hostId % state.N) + 1;
+      state.keyword = "";
+      state.liarId = null;
 
       // reset scores (new game)
-      state.players = state.players.map(p => ({...p, score: 0, name: (p.name||"").trim() || `Player ${p.id}`}));
-      state.keyword = "";
+      state.players = state.players.map(p => ({
+        ...p,
+        score: 0,
+        color: p.color || colorForId(p.id),
+        name: (p.name||"").trim() || `Player ${p.id}`
+      }));
       save();
       setPhase("ROUND_SETUP");
     };
@@ -531,30 +605,21 @@
       `<option value="${p.id}" ${p.id===state.hostId?'selected':''}>${escapeHtml(p.name)} (${p.id}번)</option>`
     ).join("");
 
-    const liarOptions = state.players
-      .filter(p => p.id !== state.hostId)
-      .map(p => `<option value="${p.id}" ${p.id===state.liarId?'selected':''}>${escapeHtml(p.name)} (${p.id}번)</option>`)
-      .join("");
-
     $app.innerHTML = `
       <div class="card">
         <div class="row">
           <h1>라운드 ${state.round}</h1>
-          <span class="pill">제시자: ${escapeHtml(pnameWithNo(state.hostId))}</span>
+          <span class="pill">제시자: ${pmarkHTML(state.hostId)}</span>
         </div>
-        <p class="muted">제시자가 제시어와 라이어를 설정합니다.</p>
+        <p class="muted">제시자는 제시어를 입력합니다. 라이어는 랜덤으로 배정됩니다 (제시자 제외).</p>
 
         <label>제시자</label>
         <select id="host">${hostOptions}</select>
 
-        <label>라이어</label>
-        <select id="liar">${liarOptions}</select>
-
-        <label>제시어 (텍스트 1줄)</label>
+        <label>제시어</label>
         <input id="keyword" placeholder="예) 우주, 커피, 비 오는 날..." value="${escapeHtml(state.keyword||"")}" />
 
-        <button class="btn" id="go">제시어 분배(리빌) 시작</button>
-        <button class="btn secondary" id="score">점수표 보기</button>
+        <button class="btn" id="go">제시어 분배 시작</button>
         <button class="btn secondary" id="home">홈으로</button>
 
         <div class="notice">
@@ -566,17 +631,6 @@
 
     document.getElementById("host").onchange = (e) => {
       state.hostId = clampInt(e.target.value, 1, state.N, 1);
-      if (state.liarId === state.hostId) state.liarId = (state.hostId % state.N) + 1;
-      save();
-      render();
-    };
-
-    document.getElementById("liar").onchange = (e) => {
-      state.liarId = clampInt(e.target.value, 1, state.N, 2);
-      if (state.liarId === state.hostId) {
-        toast("제시자와 라이어가 같을 수는 없어요.");
-        state.liarId = (state.hostId % state.N) + 1;
-      }
       save();
       render();
     };
@@ -584,14 +638,12 @@
     document.getElementById("go").onclick = () => {
       const keyword = document.getElementById("keyword").value.trim();
       if (!keyword) { toast("제시어를 입력해 주세요."); return; }
-      if (state.liarId === state.hostId) { toast("라이어는 제시자가 될 수 없어요."); return; }
       state.keyword = keyword;
       save();
       startRound();
     };
 
     document.getElementById("home").onclick = () => setPhase("HOME");
-    document.getElementById("score").onclick = () => toast("아래 점수표를 확인하세요.");
   }
 
   function renderReveal() {
@@ -600,10 +652,9 @@
     if (state.cursor >= total) { finishReveal(); return; }
 
     const currentId = order[state.cursor];
-    const currentName = pnameWithNo(currentId);
-
     const already = !!state.revealed?.[currentId];
     const isLiar = currentId === state.liarId;
+
     const secretText = isLiar
       ? "당신은 라이어입니다. 제시어를 유추해보세요."
       : `제시어는 “${state.keyword}” 입니다.`;
@@ -615,10 +666,10 @@
           <span class="pill">${state.cursor+1} / ${total}</span>
         </div>
 
-        <p class="big center">${escapeHtml(currentName)} 차례</p>
+        <p class="big center">${pmarkHTML(currentId)} 차례</p>
 
         <div class="pressArea" id="pressArea">
-          <p class="center pressHint">${already ? "이미 확인했습니다." : "2초간 꾹 눌러 공개하세요."}</p>
+          <p class="center">${already ? "이미 확인했습니다." : "2초간 꾹 눌러 공개하세요."}</p>
           <div class="progressWrap"><div class="progressBar"></div></div>
 
           <div class="revealBox" id="revealBox">${already ? escapeHtml(secretText) : "(여기에 표시)"}</div>
@@ -634,11 +685,10 @@
 
     if (!already) {
       attachLongPressOnce(document.getElementById("pressArea"), () => {
-        // 2초 달성 -> reveal stays
         state.revealed[currentId] = true;
         save();
         revealBox.style.opacity = "1";
-        revealBox.textContent = secretText;
+        revealBox.textContent = secretText; // stays visible
         confirmBtn.disabled = false;
         toast("확인 완료!");
       });
@@ -659,6 +709,7 @@
         state.revealed = {};
         state.votes = {};
         state.accusations = {};
+        state.liarId = null;
         save();
         setPhase("ROUND_SETUP");
       }
@@ -674,7 +725,7 @@
       <div class="card">
         <h1 class="center">다음 사람에게 넘기기</h1>
         <p class="center">이 화면 그대로 <b>다음 사용자에게 휴대폰을 넘겨주세요.</b></p>
-        <p class="muted center">방금 확인: ${escapeHtml(pnameWithNo(currentId))} · 진행: ${state.cursor+1}/${total}</p>
+        <p class="muted center">방금 확인: ${pmarkHTML(currentId)} · 진행: ${state.cursor+1}/${total}</p>
 
         <button class="btn" id="next">다음 참가자 시작</button>
         <button class="btn secondary" id="back">이전 화면</button>
@@ -710,8 +761,10 @@
 
   function renderVotingTokens() {
     const voters = state.voteOrder || [];
+
+    // target list: host 제외
     const targets = state.players
-      .filter(p => p.id !== state.hostId) // 제시자 제외(선택지에서도 제외)
+      .filter(p => p.id !== state.hostId)
       .map(p => p.id);
 
     if (state.voteCursor >= voters.length) {
@@ -720,29 +773,45 @@
     }
 
     const currentVoterId = voters[state.voteCursor];
-    const currentVoterName = pnameWithNo(currentVoterId);
 
-    const accusationCount = (id) => state.accusations?.[id] || 0;
+    // Build token stacks by target (colored by voter)
+    const tokenStacks = {};
+    for (const [voterStr, targetIdStr] of Object.entries(state.votes)) {
+      const voterId = parseInt(voterStr, 10);
+      const targetId = parseInt(targetIdStr, 10);
+      tokenStacks[targetId] = tokenStacks[targetId] || [];
+      tokenStacks[targetId].push(voterId);
+    }
+
+    const countFor = (tid) => (tokenStacks[tid]?.length || 0);
 
     const tilesHtml = targets.map(tid => {
-      const count = accusationCount(tid);
-      const tokens = Array.from({length: Math.min(count, 12)}, () => `<span class="token"></span>`).join("");
-      const more = count > 12 ? `<span class="muted" style="font-weight:900;">+${count-12}</span>` : "";
+      const count = countFor(tid);
+      const votersForThis = tokenStacks[tid] || [];
+      const tokens = votersForThis.slice(0, 14).map(vId => {
+        const c = pcolor(vId);
+        return `<span class="token" style="--c:${c}" title="${escapeHtml(playerById(vId)?.name || vId)}"></span>`;
+      }).join("");
+      const more = count > 14 ? `<span class="muted" style="font-weight:900;">+${count-14}</span>` : "";
+
+      // ✅ self-vote disabled
+      const isDisabled = (tid === currentVoterId);
       return `
-        <div class="tile" data-target="${tid}">
+        <div class="tile ${isDisabled ? "disabled" : ""}" data-target="${tid}" data-disabled="${isDisabled ? "1" : "0"}">
           <div class="badge">${count}</div>
-          <div class="tileTitle">${escapeHtml(pname(tid))}</div>
+          <div class="tileTitle">${pmarkHTML(tid, true)}</div>
           <div class="tileSub">${tid}번</div>
           <div class="tokenStack">${tokens}${more}</div>
         </div>
       `;
     }).join("");
 
-    // 공개 로그(선택): 누가 누구 찍었는지 칩으로 보이게
+    // 공개 로그(선택): 누가 누구 찍었는지
     const chips = Object.entries(state.votes)
       .map(([voterStr, targetId]) => {
         const v = parseInt(voterStr, 10);
-        return `<span class="chip">${escapeHtml(pname(v))} → ${escapeHtml(pname(targetId))}</span>`;
+        const t = parseInt(targetId, 10);
+        return `<span class="chip">${pmarkHTML(v, false)} → ${pmarkHTML(t, false)}</span>`;
       }).join("");
 
     $app.innerHTML = `
@@ -752,8 +821,8 @@
           <span class="pill">${state.voteCursor+1} / ${voters.length}</span>
         </div>
 
-        <p class="big center">지금 차례: ${escapeHtml(currentVoterName)}</p>
-        <p class="center muted">아래에서 라이어라고 생각하는 사람을 <b>한 번 탭</b>하세요.</p>
+        <p class="big center">지금 차례: ${pmarkHTML(currentVoterId)}</p>
+        <p class="center muted">아래에서 라이어라고 생각하는 사람을 <b>한 번 탭</b>하세요. (자기 자신은 선택 불가)</p>
 
         <div class="tiles">${tilesHtml}</div>
 
@@ -765,7 +834,7 @@
         <button class="btn secondary" id="cancel">취소(라운드로)</button>
 
         <div class="notice">
-          제시자(${escapeHtml(pnameWithNo(state.hostId))})는 지목 대상에서 제외됩니다.
+          제시자(${pmarkHTML(state.hostId)})는 지목 대상에서 제외됩니다.
         </div>
       </div>
     `;
@@ -773,10 +842,13 @@
     // Click target tile
     document.querySelectorAll(".tile[data-target]").forEach(tile => {
       tile.addEventListener("click", () => {
+        if (tile.getAttribute("data-disabled") === "1") {
+          toast("자기 자신은 지목할 수 없어요.");
+          return;
+        }
         const targetId = parseInt(tile.getAttribute("data-target"), 10);
-        // Register vote for current voter
+
         registerVote(currentVoterId, targetId);
-        // Advance to next voter
         state.voteCursor += 1;
         save();
         render();
@@ -785,13 +857,9 @@
 
     document.getElementById("undo").onclick = () => {
       if (state.voteCursor <= 0) { toast("되돌릴 차례가 없어요."); return; }
-      // Step back one voter, remove their vote
       const prevVoterId = voters[state.voteCursor - 1];
-      const prevTarget = state.votes[prevVoterId];
-      if (prevTarget != null) {
-        state.accusations[prevTarget] = Math.max(0, (state.accusations[prevTarget] || 0) - 1);
-        delete state.votes[prevVoterId];
-      }
+      delete state.votes[prevVoterId];
+      rebuildAccusationsFromVotes();
       state.voteCursor -= 1;
       save();
       toast("한 차례 되돌렸어요.");
@@ -818,8 +886,8 @@
       <div class="card">
         <h1>라운드 ${state.round} 결과</h1>
 
-        <p><b>라이어:</b> ${escapeHtml(pnameWithNo(state.liarId))}</p>
-        <p><b>제시자:</b> ${escapeHtml(pnameWithNo(state.hostId))}</p>
+        <p><b>라이어:</b> ${pmarkHTML(state.liarId)}</p>
+        <p><b>제시자:</b> ${pmarkHTML(state.hostId)}</p>
         <p><b>라이어 지목 수:</b> ${acc}명</p>
         <p><b>보너스:</b> ${bonusApplied ? "적용 (라이어 +5, 제시자 +4)" : "미적용"}</p>
 
@@ -854,7 +922,20 @@
     let rows = "";
     for (let i=1;i<=state.N;i++) {
       const p = playerById(i);
-      rows += `<tr><td>${escapeHtml(p?.name ?? `Player ${i}`)} <span class="muted">(${i}번)</span></td><td>${p?.score ?? 0}</td></tr>`;
+      const c = p?.color || colorForId(i);
+      const bg = hexToRgba(c, 0.25);
+      rows += `
+        <tr>
+          <td>
+            <span class="pmark" style="--c:${c};--bg:${bg}">
+              <span class="dot" style="--c:${c}"></span>
+              <span>${escapeHtml(p?.name ?? `Player ${i}`)}</span>
+              <span class="pno">${i}번</span>
+            </span>
+          </td>
+          <td style="font-weight:900;">${p?.score ?? 0}</td>
+        </tr>
+      `;
     }
     return `
       <table>
@@ -890,7 +971,6 @@
 
   // Boot
   render();
-
 })();
 </script>
 </body>
