@@ -228,6 +228,11 @@
       50%  { transform: scale(0.97); }
       100% { transform: scale(1.02); }
     }
+    .tile.selected{
+      animation: wobble 140ms linear infinite;
+      border-color: rgba(0,0,0,.20);
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
+    }
     .tile.wobbling{
       animation: wobble 140ms linear infinite;
       border-color: rgba(0,0,0,.20);
@@ -269,6 +274,8 @@
     votes: {},
     accusations: {},
     _lastAccusationCount: 0,
+    voteSelectedTarget: null,
+    _voteCursorSeen: -1,
   };
 
   let state = load() || initDefault();
@@ -957,6 +964,11 @@
   }
 
   function renderVotingTokens() {
+    if (state._voteCursorSeen !== state.voteCursor) {
+      state._voteCursorSeen = state.voteCursor;
+      state.voteSelectedTarget = null;
+      save();
+    }
     const voters = state.voteOrder || [];
     const targets = state.players.filter(p => p.id !== state.hostId).map(p => p.id);
 
@@ -984,9 +996,11 @@
       }).join("");
       const more = count > 14 ? `<span class="muted" style="font-weight:900;">+${count-14}</span>` : "";
       const isDisabled = (tid === currentVoterId);
+      const isSelected = (state.voteSelectedTarget === tid);
 
       return `
-        <div class="tile ${isDisabled ? "disabled" : ""}" data-target="${tid}" data-disabled="${isDisabled ? "1" : "0"}">
+        <div class="tile ${isDisabled ? "disabled" : ""} ${isSelected ? "selected" : ""}"
+           data-target="${tid}" data-disabled="${isDisabled ? "1" : "0"}">
           <div class="badge">${count}</div>
           <div class="tileTitle">${pmarkHTML(tid, true)}</div>
           <div class="tileSub">${tid}번</div>
@@ -1029,19 +1043,86 @@
       </div>
     `;
 
-    document.querySelectorAll(".tile[data-target]").forEach(tile => {
-      attachHoldToSelect(tile, 500, () => {
-        if (tile.getAttribute("data-disabled") === "1") {
-          toast("자기 자신은 지목할 수 없어요.");
-          return;
-        }
-        const targetId = parseInt(tile.getAttribute("data-target"), 10);
-        registerVote(currentVoterId, targetId);
-        state.voteCursor += 1;
-        save();
-        render();
-      });
-    });
+document.querySelectorAll(".tile[data-target]").forEach(tile => {
+    const tid = parseInt(tile.getAttribute("data-target"), 10);
+    const disabled = tile.getAttribute("data-disabled") === "1";
+    const bar = tile.querySelector(".tileHoldBar");
+  
+    let holding = false;
+    let startedAt = 0;
+    let raf = null;
+    let completed = false;
+  
+    const resetBar = () => { if (bar) bar.style.width = "0%"; };
+  
+    const update = () => {
+      if (!holding) return;
+      const elapsed = performance.now() - startedAt;
+      const p = Math.min(1, elapsed / 500);
+      if (bar) bar.style.width = (p * 100).toFixed(1) + "%";
+  
+      if (p >= 1 && !completed) {
+        completed = true;
+        holding = false;
+        if (raf) cancelAnimationFrame(raf);
+  
+        // 완료 효과 (툭 + 짧은 진동)
+        tile.classList.add("popping");
+        hapticTick(18);
+  
+        setTimeout(() => {
+          tile.classList.remove("popping");
+  
+          // ✅ 확정 처리
+          registerVote(currentVoterId, tid);
+          state.voteCursor += 1;
+          state.voteSelectedTarget = null; // 다음 사람으로 넘어가니 선택 종료
+          save();
+          render();
+        }, 120);
+      } else {
+        raf = requestAnimationFrame(update);
+      }
+    };
+  
+    const start = (e) => {
+      e.preventDefault();
+      if (disabled) return;
+      if (completed) return;
+  
+      // ✅ 누르기 시작하면 일단 "선택" 상태로 고정 (계속 바들바들)
+      state.voteSelectedTarget = tid;
+      save();
+  
+      // 다른 타일들의 selected 클래스는 render()가 갱신해주지만,
+      // 즉시 반영을 위해 현재 DOM에서도 처리:
+      document.querySelectorAll(".tile.selected").forEach(el => el.classList.remove("selected"));
+      tile.classList.add("selected");
+  
+      // 홀드 시작
+      holding = true;
+      startedAt = performance.now();
+      completed = false;
+      resetBar();
+      raf = requestAnimationFrame(update);
+    };
+  
+    const end = (e) => {
+      e.preventDefault();
+      if (!holding) return;
+      holding = false;
+      if (raf) cancelAnimationFrame(raf);
+  
+      // ✅ 0.5초 미만이면 "선택만 유지", bar는 리셋
+      if (!completed) resetBar();
+    };
+  
+    // 짧게 탭해도 선택되게: pointerdown에서 이미 선택 처리됨
+    tile.addEventListener("pointerdown", start, { passive:false });
+    tile.addEventListener("pointerup", end, { passive:false });
+    tile.addEventListener("pointercancel", end, { passive:false });
+    tile.addEventListener("pointerleave", end, { passive:false });
+  });
 
     document.getElementById("undo").onclick = () => {
       if (state.voteCursor <= 0) { toast("되돌릴 차례가 없어요."); return; }
