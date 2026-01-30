@@ -177,8 +177,8 @@
     .rouletteName{ font-size:24px; font-weight:1000; letter-spacing:.2px; }
     .rouletteSub{ opacity:.85; margin-top:8px; font-size:13px; }
 
-    /* confetti */
-    .confettiCanvas{
+    /* highlight canvas */
+    .fxCanvas{
       position:absolute;
       inset:0;
       pointer-events:none;
@@ -209,7 +209,7 @@
 
 <script>
 (() => {
-  const STORAGE_KEY = "dc_helper_v12_roulette_slow_confetti_after";
+  const STORAGE_KEY = "dc_helper_v12_roulette_pulse_highlight";
 
   const PASTELS = [
     "#FFD6A5","#FDFFB6","#CAFFBF","#9BF6FF","#A0C4FF",
@@ -219,7 +219,7 @@
   ];
 
   const defaultState = {
-    mode: "FULL",
+    mode: "LITE", // ✅ default LITE
     N: 6,
     totalRounds: 0,
     round: 1,
@@ -237,7 +237,7 @@
     accusations: {},
     lastRoundDelta: {},
     _lastAccCount: 0,
-    roulette: { running:false, show:false, shownName:"", done:false, confetti:false }
+    roulette: { running:false, show:false, shownName:"", done:false, fx:false }
   };
 
   let state = load() || initDefault();
@@ -258,14 +258,14 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if(!raw) return null;
       const obj = JSON.parse(raw);
-      obj.mode = obj.mode || "FULL";
+      obj.mode = obj.mode || "LITE";
       obj.players = (obj.players||[]).map(p => ({
         ...p,
         color: p.color || colorForId(p.id),
         isDefaultName: (typeof p.isDefaultName==="boolean") ? p.isDefaultName : isLooksLikeDefault(p.name, p.id)
       }));
       obj.lastRoundDelta = obj.lastRoundDelta || {};
-      obj.roulette = obj.roulette || { running:false, show:false, shownName:"", done:false, confetti:false };
+      obj.roulette = obj.roulette || { running:false, show:false, shownName:"", done:false, fx:false };
       return obj;
     }catch{ return null; }
   }
@@ -441,7 +441,7 @@
     state.voteCursor=0;
     state.lastRoundDelta={};
     state._lastAccCount=0;
-    state.roulette={ running:false, show:false, shownName:"", done:false, confetti:false };
+    state.roulette={ running:false, show:false, shownName:"", done:false, fx:false };
 
     state.liarId = pickRandom(state.revealOrder);
     save();
@@ -521,68 +521,114 @@
     state.voteCursor=0;
     state.lastRoundDelta={};
     state._lastAccCount=0;
-    state.roulette={ running:false, show:false, shownName:"", done:false, confetti:false };
+    state.roulette={ running:false, show:false, shownName:"", done:false, fx:false };
     save();
     setPhase("ROUND_SETUP");
   }
 
-  // --- Confetti (simple canvas particles) ---
-  function launchConfetti(canvas){
+  // ✅ New highlight FX: radial pulse rings + spark burst (no falling confetti)
+  function launchHighlightFX(canvas, accentHex){
     if(!canvas) return;
     const ctx = canvas.getContext("2d");
     const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.floor(rect.width * devicePixelRatio);
-    canvas.height = Math.floor(rect.height * devicePixelRatio);
-    ctx.scale(devicePixelRatio, devicePixelRatio);
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    canvas.style.width = rect.width + "px";
+    canvas.style.height = rect.height + "px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
 
     const W = rect.width, H = rect.height;
-    const colors = PASTELS.slice(0, 12);
-    const parts = [];
-    const count = 120;
+    const cx = W/2, cy = H/2;
 
-    for(let i=0;i<count;i++){
-      parts.push({
-        x: W/2 + (Math.random()-0.5)*40,
-        y: H*0.15 + (Math.random()-0.5)*20,
-        vx: (Math.random()-0.5)*6,
-        vy: 2 + Math.random()*4,
-        g: 0.08 + Math.random()*0.08,
-        r: 2 + Math.random()*4,
-        a: 1,
-        rot: Math.random()*Math.PI,
-        vr: (Math.random()-0.5)*0.2,
-        c: colors[Math.floor(Math.random()*colors.length)]
+    const accent = accentHex || "#FFFFFF";
+    const glow = hexToRgba(accent, 0.35);
+
+    const sparks = [];
+    const sparkCount = 46;
+    for(let i=0;i<sparkCount;i++){
+      const ang = (Math.PI*2) * (i/sparkCount) + (Math.random()-0.5)*0.18;
+      const spd = 2.0 + Math.random()*3.2;
+      sparks.push({
+        x: cx, y: cy,
+        vx: Math.cos(ang)*spd,
+        vy: Math.sin(ang)*spd,
+        life: 1,
+        w: 1 + Math.random()*1.4
       });
     }
 
     const start = performance.now();
-    const dur = 1100;
+    const dur = 980;
 
-    function frame(t){
-      const dt = (t - start);
+    function easeOutCubic(t){ return 1 - Math.pow(1-t, 3); }
+
+    function frame(now){
+      const t = (now - start) / dur;
+      const k = Math.min(1, Math.max(0, t));
+      const e = easeOutCubic(k);
+
       ctx.clearRect(0,0,W,H);
-      parts.forEach(p=>{
-        p.vy += p.g*16/60;
-        p.x += p.vx;
-        p.y += p.vy;
-        p.rot += p.vr;
-        p.a = Math.max(0, 1 - dt/dur);
 
+      // background soft flash
+      ctx.save();
+      ctx.globalAlpha = (1-k) * 0.22;
+      ctx.fillStyle = glow;
+      ctx.fillRect(0,0,W,H);
+      ctx.restore();
+
+      // center glow blob
+      ctx.save();
+      ctx.globalAlpha = (1-k) * 0.9;
+      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 140);
+      grd.addColorStop(0, hexToRgba(accent, 0.55));
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 160, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      // pulse rings (2~3)
+      const ring1 = 18 + e*120;
+      const ring2 = Math.max(0, -0.18 + k) ? (10 + easeOutCubic(Math.max(0, (k-0.18)/0.82))*170) : 0;
+      const ring3 = Math.max(0, -0.34 + k) ? (8 + easeOutCubic(Math.max(0, (k-0.34)/0.66))*220) : 0;
+
+      function drawRing(r, alpha){
+        if(r<=0) return;
         ctx.save();
-        ctx.globalAlpha = p.a;
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.rot);
-        ctx.fillStyle = p.c;
-        ctx.fillRect(-p.r, -p.r/2, p.r*2.2, p.r);
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = hexToRgba(accent, 0.85);
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      drawRing(ring1, (1-k)*0.75);
+      drawRing(ring2, (1-k)*0.55);
+      drawRing(ring3, (1-k)*0.35);
+
+      // sparks
+      sparks.forEach(s=>{
+        s.x += s.vx * 1.1;
+        s.y += s.vy * 1.1;
+        s.life = Math.max(0, 1 - k);
+        ctx.save();
+        ctx.globalAlpha = s.life * 0.95;
+        ctx.strokeStyle = hexToRgba(accent, 0.9);
+        ctx.lineWidth = s.w;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x - s.vx*6, s.y - s.vy*6);
+        ctx.stroke();
         ctx.restore();
       });
 
-      if(dt < dur){
-        requestAnimationFrame(frame);
-      }else{
-        ctx.clearRect(0,0,W,H);
-      }
+      if(k < 1) requestAnimationFrame(frame);
+      else ctx.clearRect(0,0,W,H);
     }
+
     requestAnimationFrame(frame);
   }
 
@@ -599,7 +645,7 @@
     const names = ids.map(id => playerById(id)?.name || `Player ${id}`);
     let i=0;
 
-    const totalMs = 2800; // ✅ slower/longer
+    const totalMs = 2800;
     const start = performance.now();
 
     const tick = () => {
@@ -618,20 +664,18 @@
         render();
         haptic(28);
 
-        // confetti condition: liar accused <= 1
+        // highlight condition: liar accused <= 1
         if((state._lastAccCount||0) <= 1){
-          state.roulette.confetti = true;
+          state.roulette.fx = true;
           save();
-          // render will attach & fire confetti once
           render();
         }
         return;
       }
 
-      // ✅ ease-out: much slower near end
-      const k = t / totalMs; // 0..1
+      const k = t / totalMs;
       const base = 55;
-      const slow = 210 * (k*k);  // quadratic slow down
+      const slow = 210 * (k*k);
       const nextDelay = Math.round(base + slow);
       setTimeout(tick, nextDelay);
     };
@@ -664,8 +708,8 @@
 
         <label>모드 선택</label>
         <select id="mode">
-          <option value="FULL" ${state.mode==="FULL"?"selected":""}>FULL (0.5초 꾹 눌러 투표 확정)</option>
           <option value="LITE" ${state.mode==="LITE"?"selected":""}>LITE (탭으로 빠르게 투표)</option>
+          <option value="FULL" ${state.mode==="FULL"?"selected":""}>FULL (컴포넌트 없을때)</option>
         </select>
 
         <div class="grid2">
@@ -770,7 +814,7 @@
 
       state.lastRoundDelta={};
       state._lastAccCount=0;
-      state.roulette={ running:false, show:false, shownName:"", done:false, confetti:false };
+      state.roulette={ running:false, show:false, shownName:"", done:false, fx:false };
       save();
       setPhase("ROUND_SETUP");
     };
@@ -882,7 +926,7 @@
         state.votes={}; state.accusations={}; state.liarId=null;
         state.voteOrder=[]; state.voteCursor=0;
         state.lastRoundDelta={}; state._lastAccCount=0;
-        state.roulette={ running:false, show:false, shownName:"", done:false, confetti:false };
+        state.roulette={ running:false, show:false, shownName:"", done:false, fx:false };
         save(); setPhase("ROUND_SETUP");
       }
     };
@@ -1098,9 +1142,9 @@
         <p class="center muted">짜잔… 라이어는 누구였을까요?</p>
 
         <div class="rouletteBox" id="rouletteBox">
-          <canvas class="confettiCanvas" id="confetti"></canvas>
+          <canvas class="fxCanvas" id="fx"></canvas>
           <div class="rouletteName" id="rouletteName">…</div>
-          <div class="rouletteSub" id="rouletteSub">룰렛 돌리는 중…</div>
+          <div class="rouletteSub" id="rouletteSub">라이어는 누구일까요?</div>
         </div>
 
         <div id="afterBox" style="display:none;">
@@ -1119,32 +1163,30 @@
     const nameEl=document.getElementById("rouletteName");
     const subEl=document.getElementById("rouletteSub");
     const box=document.getElementById("rouletteBox");
+    const fxCanvas=document.getElementById("fx");
     const afterBox=document.getElementById("afterBox");
-    const confettiCanvas=document.getElementById("confetti");
 
-    // start roulette once
     if(!state.roulette.running && !state.roulette.done){
       startRoulette();
     }
 
     nameEl.textContent = state.roulette.shownName || "…";
-    subEl.textContent = state.roulette.running ? "룰렛 돌리는 중…" : "라이어 공개!";
+    // ✅ keep the subtext as the suspense line (requested)
+    subEl.textContent = "라이어는 누구일까요?";
 
     if(state.roulette.done){
-      // nicer glow
       const c=pcolor(state.liarId);
       box.style.boxShadow = `0 16px 38px ${hexToRgba(c,0.28)}`;
-      // show after part only after roulette ends ✅
+
       afterBox.style.display="block";
 
-      // confetti once ✅
-      if(state.roulette.confetti){
-        state.roulette.confetti=false;
+      // ✅ highlight once (only when liar accused <= 1)
+      if(state.roulette.fx){
+        state.roulette.fx=false;
         save();
-        setTimeout(()=>launchConfetti(confettiCanvas), 120);
+        setTimeout(()=>launchHighlightFX(fxCanvas, c), 90);
       }
 
-      // fill delta list
       const dl=document.getElementById("deltaList");
       dl.innerHTML = Array.from({length:state.N}, (_,i)=>i+1).map(id=>{
         const d = state.lastRoundDelta?.[id] ?? 0;
