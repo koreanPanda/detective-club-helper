@@ -1,1274 +1,281 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Detective Club Helper</title>
-  <style>
-    :root { --pad:18px; --radius:16px; --shadow:0 10px 30px rgba(0,0,0,.08); }
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
-      background:#f6f7fb; color:#111;
-      min-height:100vh; display:flex; justify-content:center;
-      -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
-    }
-    .app{ width:min(620px,100%); padding:var(--pad); padding-bottom:calc(var(--pad) + env(safe-area-inset-bottom)); }
-    .card{ background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); padding:var(--pad); margin:10px 0; }
-    h1{ font-size:22px; margin:0 0 8px; }
-    h2{ font-size:18px; margin:0 0 8px; }
-    p{ margin:8px 0; line-height:1.45; color:#333; }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
-    .center{ text-align:center; }
-    .muted{ color:#666; font-size:13px; }
-    .divider{ height:1px; background:#eef0f6; margin:14px 0; }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Detective Club Helper</title>
 
-    label{ font-size:13px; color:#444; display:block; margin:12px 0 6px; }
-    input, select{
-      width:100%; padding:12px 12px;
-      border:1px solid #d8dbe6; border-radius:12px;
-      font-size:16px; outline:none; background:#fff; color:#111;
-      -webkit-user-select:text !important; user-select:text !important;
-      -webkit-touch-callout:default !important;
-    }
-    input:focus, select:focus{ border-color:#7aa7ff; box-shadow:0 0 0 3px rgba(122,167,255,.25); }
-
-    .btn{
-      width:100%; padding:14px 14px;
-      border:0; border-radius:14px;
-      font-size:16px; font-weight:900;
-      background:#111; color:#fff; cursor:pointer;
-      margin-top:12px;
-    }
-    .btn.secondary{ background:#e9ecf6; color:#111; }
-    .btn.danger{ background:#d62828; }
-    .btn:disabled{ opacity:.5; cursor:not-allowed; }
-    .btn:active{ transform:translateY(1px); }
-
-    .pill{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:8px 10px; border-radius:999px;
-      background:#f0f2f9; color:#222;
-      font-size:13px; font-weight:800;
-    }
-
-    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    @media (max-width:420px){ .grid2{ grid-template-columns:1fr; } }
-
-    .notice{
-      font-size:12px; color:#666; margin-top:10px;
-      background:#f5f7ff; border:1px solid #e1e7ff;
-      padding:10px 12px; border-radius:12px;
-    }
-
-    .pmark{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:4px 10px; border-radius:999px;
-      font-weight:900; color:#111;
-      background:var(--bg,#f0f2f9);
-      border:1px solid rgba(0,0,0,.06);
-      box-shadow:0 6px 18px rgba(0,0,0,.06);
-      white-space:nowrap;
-    }
-    .dot{
-      width:10px; height:10px; border-radius:999px;
-      background:var(--c,#111);
-      box-shadow:0 2px 6px rgba(0,0,0,.12);
-      flex:0 0 auto;
-    }
-    .pno{ font-weight:900; color:#333; opacity:.75; font-size:12px; }
-
-    .numToken{
-      display:inline-flex; align-items:center; justify-content:center;
-      min-width:72px; height:40px; padding:0 12px;
-      border-radius:999px; font-weight:900;
-      border:1px solid rgba(0,0,0,.06);
-      box-shadow:0 6px 18px rgba(0,0,0,.06);
-      background:var(--bg,#f0f2f9); color:#111; gap:8px;
-      flex:0 0 auto;
-    }
-    .nameInput.defaultName{ color:#9aa0ad; font-weight:800; }
-    .nameInput.realName{ color:#111; font-weight:900; }
-
-    .pressArea{
-      user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
-      touch-action:manipulation;
-      border:2px dashed #d8dbe6;
-      border-radius:18px;
-      padding:18px;
-      margin-top:12px;
-      background:#fbfcff;
-    }
-    .progressWrap{ height:10px; background:#eef0f6; border-radius:999px; overflow:hidden; }
-    .progressBar{ height:10px; width:0%; background:#111; transition:width .05s linear; }
-    .revealBox{
-      border-radius:18px;
-      padding:18px;
-      background:#111;
-      color:#fff;
-      margin-top:12px;
-      min-height:86px;
-      display:flex; align-items:center; justify-content:center;
-      text-align:center;
-      font-size:18px; font-weight:900;
-      opacity:.10;
-    }
-
-    .tiles{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; }
-    @media (max-width:420px){ .tiles{ grid-template-columns:1fr; } }
-    .tile{
-      border:1px solid #e7eaf4;
-      border-radius:16px;
-      padding:14px;
-      background:#fff;
-      box-shadow:0 6px 18px rgba(0,0,0,.05);
-      cursor:pointer;
-      user-select:none;
-      position:relative;
-      touch-action:manipulation;
-      -webkit-touch-callout:none;
-      -webkit-user-select:none;
-      -webkit-tap-highlight-color:transparent;
-    }
-    .tileTitle{ font-weight:900; font-size:16px; margin:0; }
-    .tileSub{ font-size:12px; color:#666; margin-top:4px; }
-    .tile.disabled{ opacity:.45; cursor:not-allowed; box-shadow:none; }
-
-    .tileHoldBarWrap{
-      height:8px; background:#eef0f6;
-      border-radius:999px; overflow:hidden; margin-top:10px;
-    }
-    .tileHoldBar{ height:8px; width:0%; background:#111; transition:width .05s linear; }
-    .tileHoldHint{ font-size:12px; color:#666; margin-top:8px; text-align:center; }
-
-    @keyframes wobble{
-      0%{transform:translateX(0) rotate(0)}
-      15%{transform:translateX(-1px) rotate(-0.6deg)}
-      30%{transform:translateX(1px) rotate(0.6deg)}
-      45%{transform:translateX(-1px) rotate(-0.6deg)}
-      60%{transform:translateX(1px) rotate(0.6deg)}
-      75%{transform:translateX(-0.5px) rotate(-0.3deg)}
-      100%{transform:translateX(0) rotate(0)}
-    }
-    @keyframes pop{ 0%{transform:scale(1)} 50%{transform:scale(.97)} 100%{transform:scale(1.02)} }
-
-    .tile.selected{
-      animation:wobble 140ms linear infinite;
-      border-color:rgba(0,0,0,.20);
-      box-shadow:0 10px 24px rgba(0,0,0,.12);
-    }
-    .tile.popping{ animation:pop 120ms ease-out 1; }
-
-    /* roulette */
-    .rouletteBox{
-      border-radius:18px;
-      padding:18px;
-      background:#111;
-      color:#fff;
-      margin-top:12px;
-      min-height:110px;
-      display:flex; flex-direction:column;
-      align-items:center; justify-content:center;
-      text-align:center;
-      position:relative;
-      overflow:hidden;
-    }
-    .rouletteName{ font-size:24px; font-weight:1000; letter-spacing:.2px; }
-    .rouletteSub{ opacity:.85; margin-top:8px; font-size:13px; }
-
-    /* ===== Border light sweep highlight (GOOD VERSION) ===== */
-.rouletteBox.borderGlow{
-  position:relative;
-  overflow:hidden;
+<style>
+/* ===== Base ===== */
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  background:#f5f6fa;
+  color:#111;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+button,input{
+  font-family:inherit;
+}
+input{
+  -webkit-user-select:text;
+  user-select:text;
 }
 
-    /* 2-layer glow: sharp core + soft bloom */
-    .rouletteBox.borderGlow::before,
-    .rouletteBox.borderGlow::after{
-      content:"";
-      position:absolute;
-      inset:-7px;
-      border-radius:22px;
-      padding:3px;                /* ring thickness */
-      pointer-events:none;
-    
-      /* show only border ring */
-      -webkit-mask:
-        linear-gradient(#000 0 0) content-box,
-        linear-gradient(#000 0 0);
-      -webkit-mask-composite:xor;
-      mask-composite:exclude;
-    
-      opacity:0;
-      transform:rotate(0deg);
-    }
-    
-    /* core (선명한 하이라이트) */
-    .rouletteBox.borderGlow::before{
-      /* 작은 호 + 꼬리 (arc + tail) */
-      background: conic-gradient(
-        from 0deg,
-        transparent 0deg,
-        transparent 300deg,
-        rgba(255,255,255,0.0) 300deg,
-        rgba(255,255,255,0.0) 318deg,
-        var(--glow, #fff) 330deg,
-        rgba(255,255,255,0.0) 342deg,
-        transparent 360deg
-      );
-      filter: blur(0.4px);
-      mix-blend-mode: screen;
-    }
-    
-    /* bloom (부드러운 번짐) */
-    .rouletteBox.borderGlow::after{
-      background: conic-gradient(
-        from 0deg,
-        transparent 0deg,
-        transparent 302deg,
-        rgba(255,255,255,0.0) 302deg,
-        color-mix(in srgb, var(--glow, #fff) 55%, transparent) 330deg,
-        rgba(255,255,255,0.0) 352deg,
-        transparent 360deg
-      );
-      filter: blur(4px);
-      mix-blend-mode: screen;
-    }
-    
-    /* run */
-    .rouletteBox.borderGlow.runGlow::before,
-    .rouletteBox.borderGlow.runGlow::after{
-      opacity:1;
-      animation: borderSweep 1.25s ease-out 1;
-    }
-    
-    @keyframes borderSweep{
-      0%   { transform: rotate(0deg);   opacity:0; }
-      10%  { opacity:1; }
-      85%  { opacity:1; }
-      100% { transform: rotate(360deg); opacity:0; }
-    }
+/* ===== Layout ===== */
+.screen{padding:18px;max-width:520px;margin:0 auto}
+.card{
+  background:#fff;
+  border-radius:16px;
+  padding:18px;
+  box-shadow:0 12px 30px rgba(0,0,0,.08);
+  margin-bottom:14px;
+}
+h1{margin:0 0 6px;font-size:22px}
+.sub{color:#555;font-size:13px}
 
+/* ===== Buttons ===== */
+.btn{
+  width:100%;
+  border:none;
+  border-radius:12px;
+  padding:14px;
+  font-weight:700;
+  font-size:15px;
+  background:#111;
+  color:#fff;
+}
+.btn.ghost{
+  background:#eee;
+  color:#111;
+}
+.btnRow{display:flex;gap:10px}
 
-    .deltaList{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
-    .deltaRow{
-      display:flex; align-items:center; justify-content:space-between;
-      gap:10px;
-      padding:10px 12px;
-      border-radius:14px;
-      border:1px solid #eef0f6;
-      background:#fff;
-      box-shadow:0 6px 18px rgba(0,0,0,.05);
-    }
-    .deltaVal{
-      font-weight:1000; font-size:16px;
-      padding:6px 10px; border-radius:999px;
-      background:#f0f2f9; border:1px solid #e2e6f2;
-      min-width:64px; text-align:center;
-    }
+/* ===== Mode ===== */
+.mode{
+  display:flex;
+  gap:10px;
+}
+.mode label{
+  flex:1;
+  padding:14px;
+  border-radius:14px;
+  border:2px solid #ddd;
+  text-align:center;
+  font-weight:800;
+}
+.mode input{display:none}
+.mode input:checked + label{
+  border-color:#111;
+  background:#111;
+  color:#fff;
+}
 
-    .pressArea, .tile, .rouletteBox { -webkit-user-select:none !important; user-select:none !important; -webkit-touch-callout:none !important; }
-  </style>
+/* ===== Hold reveal ===== */
+.hold{
+  background:#111;
+  color:#fff;
+  border-radius:18px;
+  height:140px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  font-weight:900;
+}
+.hint{font-size:13px;color:#777;text-align:center;margin-top:8px}
+
+/* ===== Roulette ===== */
+.rouletteBox{
+  position:relative;
+  background:#111;
+  color:#fff;
+  border-radius:18px;
+  padding:30px 12px;
+  text-align:center;
+}
+.rouletteName{
+  font-size:28px;
+  font-weight:1000;
+}
+
+/* ===== Victory UI ===== */
+.liarBanner{
+  position:absolute;
+  top:-18px;
+  left:50%;
+  transform:translateX(-50%) translateY(-20px) scale(.95);
+  background:#111;
+  color:#fff;
+  padding:8px 18px;
+  border-radius:999px;
+  font-weight:900;
+  letter-spacing:.04em;
+  opacity:0;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+}
+.liarBanner.show{
+  animation:bannerDrop .55s cubic-bezier(.2,1.4,.3,1) forwards;
+}
+@keyframes bannerDrop{
+  to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+}
+
+.liarStamp{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:32px;
+  font-weight:1000;
+  color:#c62828;
+  text-align:center;
+  transform:rotate(-12deg) scale(1.8);
+  opacity:0;
+  pointer-events:none;
+  text-shadow:0 3px 0 rgba(0,0,0,.25);
+}
+.liarStamp.show{
+  animation:stampHit .45s cubic-bezier(.2,1.6,.4,1) forwards;
+}
+@keyframes stampHit{
+  0%{opacity:0;transform:rotate(-12deg) scale(2.4)}
+  60%{opacity:1;transform:rotate(-12deg) scale(.92)}
+  100%{opacity:1;transform:rotate(-12deg) scale(1)}
+}
+</style>
 </head>
+
 <body>
-  <div class="app" id="app"></div>
+<div class="screen" id="app"></div>
 
 <script>
-(() => {
-  const STORAGE_KEY = "dc_helper_v13_border_sweep_glow";
-
-  const PASTELS = [
-    "#FFD6A5","#FDFFB6","#CAFFBF","#9BF6FF","#A0C4FF",
-    "#BDB2FF","#FFC6FF","#FFADAD","#CDEAC0","#B9FBC0",
-    "#D0F4DE","#FDE2E4","#E2F0CB","#CFBAF0","#F1C0E8",
-    "#F9F9C5","#BEE1E6","#EAC4D5","#C6DEF1","#F2C6DE"
-  ];
-
-  const defaultState = {
-    mode: "LITE", // default LITE
-    N: 6,
-    totalRounds: 0,
-    round: 1,
-    phase: "HOME",
-    players: [],
-    hostId: 1,
-    liarId: null,
-    keyword: "",
-    revealOrder: [],
-    cursor: 0,
-    revealed: {},
-    voteOrder: [],
-    voteCursor: 0,
-    votes: {},
-    accusations: {},
-    lastRoundDelta: {},
-    _lastAccCount: 0,
-    roulette: { running:false, show:false, shownName:"", done:false, fx:false }
-  };
-
-  let state = load() || initDefault();
-
-  function initDefault(){
-    const s = structuredClone(defaultState);
-    s.players = [];
-    for(let i=1;i<=s.N;i++){
-      s.players.push({ id:i, name:`Player ${i}`, score:0, color:colorForId(i), isDefaultName:true });
-    }
-    s.hostId = 1;
-    return s;
-  }
-
-  function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-  function load(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return null;
-      const obj = JSON.parse(raw);
-      obj.mode = obj.mode || "LITE";
-      obj.players = (obj.players||[]).map(p => ({
-        ...p,
-        color: p.color || colorForId(p.id),
-        isDefaultName: (typeof p.isDefaultName==="boolean") ? p.isDefaultName : isLooksLikeDefault(p.name, p.id)
-      }));
-      obj.lastRoundDelta = obj.lastRoundDelta || {};
-      obj.roulette = obj.roulette || { running:false, show:false, shownName:"", done:false, fx:false };
-      return obj;
-    }catch{ return null; }
-  }
-
-  function resetAll(){ state = initDefault(); save(); render(); }
-
-  history.pushState({locked:true}, "");
-  window.addEventListener("popstate", () => {
-    history.pushState({locked:true}, "");
-    toast("뒤로가기는 비활성화되어 있어요. (치팅 방지)");
-  });
-
-  function clearTextSelection(){
-    try{
-      const sel = window.getSelection?.();
-      if(sel && sel.rangeCount) sel.removeAllRanges();
-    }catch{}
-  }
-  document.addEventListener("selectionchange", () => {
-    const a = document.activeElement;
-    const typing = a && (a.tagName==="INPUT" || a.tagName==="TEXTAREA");
-    if(typing) return;
-    clearTextSelection();
-  });
-
-  function toast(msg){
-    const id="toast";
-    let el=document.getElementById(id);
-    if(!el){
-      el=document.createElement("div");
-      el.id=id;
-      el.style.position="fixed";
-      el.style.left="50%";
-      el.style.bottom="20px";
-      el.style.transform="translateX(-50%)";
-      el.style.background="rgba(17,17,17,.92)";
-      el.style.color="#fff";
-      el.style.padding="10px 12px";
-      el.style.borderRadius="12px";
-      el.style.fontSize="13px";
-      el.style.zIndex="9999";
-      document.body.appendChild(el);
-    }
-    el.textContent=msg;
-    el.style.display="block";
-    clearTimeout(toast._t);
-    toast._t=setTimeout(()=>{ el.style.display="none"; },1600);
-  }
-  function haptic(ms=18){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch{} }
-
-  const $app = document.getElementById("app");
-  function setPhase(p){ state.phase=p; save(); render(); }
-
-  function clampInt(v,min,max,fallback){
-    const n=parseInt(v,10);
-    if(Number.isNaN(n)) return fallback;
-    return Math.min(max, Math.max(min, n));
-  }
-  function colorForId(id){ return PASTELS[(id-1)%PASTELS.length]; }
-  function hexToRgba(hex,a){
-    const h=(hex||"").replace("#","");
-    const v=h.length===3 ? h.split("").map(ch=>ch+ch).join("") : h;
-    const r=parseInt(v.slice(0,2),16);
-    const g=parseInt(v.slice(2,4),16);
-    const b=parseInt(v.slice(4,6),16);
-    return `rgba(${r},${g},${b},${a})`;
-  }
-  function playerById(id){ return state.players.find(p=>p.id===id); }
-  function pcolor(id){ return playerById(id)?.color || colorForId(id); }
-  function isLooksLikeDefault(name,id){ return (name||"").trim()===`Player ${id}`; }
-
-  function pmarkHTML(id, withNo=true){
-    const p=playerById(id);
-    const name=p?.name ?? `${id}번`;
-    const c=pcolor(id);
-    const bg=hexToRgba(c,0.28);
-    return `
-      <span class="pmark" style="--c:${c};--bg:${bg}">
-        <span class="dot" style="--c:${c}"></span>
-        <span>${escapeHtml(name)}</span>
-        ${withNo ? `<span class="pno">${id}번</span>` : ``}
-      </span>
-    `;
-  }
-  function numTokenHTML(id){
-    const c=pcolor(id);
-    const bg=hexToRgba(c,0.28);
-    return `
-      <div class="numToken" style="--c:${c};--bg:${bg}">
-        <span class="dot" style="--c:${c}"></span>
-        <span>${id}번</span>
-      </div>
-    `;
-  }
-
-  function ensurePlayersForN(newN){
-    const prev=new Map(state.players.map(p=>[p.id,p]));
-    const next=[];
-    for(let i=1;i<=newN;i++){
-      const old=prev.get(i);
-      const name=old?.name ?? `Player ${i}`;
-      const isDef=(typeof old?.isDefaultName==="boolean") ? old.isDefaultName : isLooksLikeDefault(name,i);
-      next.push({ id:i, name, score:old?.score??0, color:old?.color??colorForId(i), isDefaultName:isDef });
-    }
-    state.players=next;
-    state.N=newN;
-    if(state.hostId>newN) state.hostId=1;
-  }
-
-  function makeOrderAfterHost(N, hostId){
-    const arr=[];
-    let x=(hostId % N) + 1;
-    while(arr.length < N-1){
-      if(x !== hostId) arr.push(x);
-      x=(x % N) + 1;
-    }
-    return arr;
-  }
-  function pickRandom(arr){ return arr?.length ? arr[Math.floor(Math.random()*arr.length)] : null; }
-  function nextHostId(host,N){ return (host % N) + 1; }
-
-  function attachLongPressOnce(container, onCompleted){
-    let holding=false, startedAt=0, raf=null, completed=false;
-    const bar=container.querySelector(".progressBar");
-
-    const update=()=>{
-      if(!holding) return;
-      const elapsed=performance.now()-startedAt;
-      const p=Math.min(1, elapsed/2000);
-      bar.style.width=(p*100).toFixed(1)+"%";
-      if(p>=1 && !completed){
-        completed=true; holding=false;
-        if(raf) cancelAnimationFrame(raf);
-        clearTextSelection();
-        onCompleted();
-      }else{
-        raf=requestAnimationFrame(update);
-      }
-    };
-
-    const start=(e)=>{
-      if(e.cancelable) e.preventDefault();
-      clearTextSelection();
-      if(completed||holding) return;
-      holding=true; bar.style.width="0%";
-      startedAt=performance.now();
-      raf=requestAnimationFrame(update);
-    };
-    const end=(e)=>{
-      if(e.cancelable) e.preventDefault();
-      clearTextSelection();
-      if(!holding) return;
-      holding=false;
-      if(raf) cancelAnimationFrame(raf);
-    };
-
-    container.addEventListener("pointerdown", start, {passive:false});
-    container.addEventListener("pointerup", end, {passive:false});
-    container.addEventListener("pointercancel", end, {passive:false});
-    container.addEventListener("pointerleave", end, {passive:false});
-    container.addEventListener("contextmenu", (e)=>e.preventDefault());
-    container.addEventListener("selectstart", (e)=>e.preventDefault());
-  }
-
-  function startRound(){
-    state.keyword=(state.keyword||"").trim();
-    state.revealOrder=makeOrderAfterHost(state.N, state.hostId);
-    state.cursor=0;
-    state.revealed={};
-    state.votes={};
-    state.accusations={};
-    state.voteOrder=[];
-    state.voteCursor=0;
-    state.lastRoundDelta={};
-    state._lastAccCount=0;
-    state.roulette={ running:false, show:false, shownName:"", done:false, fx:false };
-
-    state.liarId = pickRandom(state.revealOrder);
-    save();
-    setPhase("REVEAL");
-  }
-
-  function startVoting(){
-    state.voteOrder = makeOrderAfterHost(state.N, state.hostId);
-    state.voteCursor=0;
-    state.votes={};
-    state.accusations={};
-    save();
-    setPhase("VOTING");
-  }
-
-  function rebuildAccusations(){
-    const acc={};
-    for(const [voterStr,targetStr] of Object.entries(state.votes)){
-      const tid=parseInt(targetStr,10);
-      acc[tid]=(acc[tid]||0)+1;
-    }
-    state.accusations=acc;
-  }
-
-  function registerVote(voterId,targetId){
-    state.votes[voterId]=targetId;
-    rebuildAccusations();
-  }
-
-  function applyScoring(){
-    const hostId=state.hostId;
-    const liarId=state.liarId;
-    const accCount = state.accusations[liarId] || 0;
-    state._lastAccCount = accCount;
-
-    const delta={}; for(let i=1;i<=state.N;i++) delta[i]=0;
-
-    for(const voterIdStr of Object.keys(state.votes)){
-      const voterId=parseInt(voterIdStr,10);
-      if(voterId===hostId) continue;
-      if(parseInt(state.votes[voterId],10)===liarId){
-        delta[voterId]+=3;
-      }
-    }
-    if(accCount<=1){
-      delta[liarId]+=5;
-      delta[hostId]+=4;
-    }
-
-    for(let i=1;i<=state.N;i++){
-      const p=playerById(i);
-      if(p) p.score += (delta[i]||0);
-    }
-    state.lastRoundDelta=delta;
-    save();
-  }
-
-  function maybeEndByRoundLimit(){
-    if(state.totalRounds>0 && state.round>=state.totalRounds){
-      setPhase("GAME_END");
-      return true;
-    }
-    return false;
-  }
-
-  function nextRound(){
-    state.round += 1;
-    state.hostId = nextHostId(state.hostId, state.N);
-    state.keyword="";
-    state.liarId=null;
-    state.revealOrder=[];
-    state.cursor=0;
-    state.revealed={};
-    state.votes={};
-    state.accusations={};
-    state.voteOrder=[];
-    state.voteCursor=0;
-    state.lastRoundDelta={};
-    state._lastAccCount=0;
-    state.roulette={ running:false, show:false, shownName:"", done:false, fx:false };
-    save();
-    setPhase("ROUND_SETUP");
-  }
-
-  /* ✅ Border sweep runner */
-  function runBorderSweep(el, accentHex){
-    if(!el) return;
-    if(accentHex) el.style.setProperty("--glow", accentHex);
-    el.classList.add("borderGlow");
-    void el.offsetWidth; // restart
-    el.classList.add("runGlow");
-    setTimeout(()=>{
-      el.classList.remove("runGlow");
-      // keep borderGlow so next time it's ready (optional)
-    }, 1350);
-  }
-
-  // --- Roulette ---
-  function startRoulette(){
-    if(state.roulette.running) return;
-    state.roulette.running=true;
-    state.roulette.done=false;
-    state.roulette.show=true;
-    state.roulette.shownName="";
-    save();
-
-    const ids = makeOrderAfterHost(state.N, state.hostId);
-    const names = ids.map(id => playerById(id)?.name || `Player ${id}`);
-    let i=0;
-
-    const totalMs = 2800;
-    const start = performance.now();
-
-    const tick = () => {
-      const t = performance.now() - start;
-      const idx = i % names.length;
-      state.roulette.shownName = names[idx];
-      save();
-      render();
-      i++;
-
-      if(t >= totalMs){
-        state.roulette.running=false;
-        state.roulette.done=true;
-        state.roulette.shownName = playerById(state.liarId)?.name || `Player ${state.liarId}`;
-        save();
-        render();
-        haptic(28);
-
-        if((state._lastAccCount||0) <= 1){
-          state.roulette.fx = true;
-          save();
-          render();
-        }
-        return;
-      }
-
-      const k = t / totalMs;
-      const base = 55;
-      const slow = 210 * (k*k);
-      const nextDelay = Math.round(base + slow);
-      setTimeout(tick, nextDelay);
-    };
-
-    tick();
-  }
-
-  function render(){
-    switch(state.phase){
-      case "HOME": return renderHome();
-      case "ROUND_SETUP": return renderRoundSetup();
-      case "REVEAL": return renderReveal();
-      case "PASS_NEXT": return renderPassNext();
-      case "PLAY_START": return renderPlayStart();
-      case "KEYWORD_RECAP": return renderKeywordRecap();
-      case "VOTING": return renderVoting();
-      case "RESULT_ROULETTE": return renderResultRoulette();
-      case "GAME_END": return renderGameEnd();
-      default: state.phase="HOME"; save(); return renderHome();
-    }
-  }
-
-  function renderHome(){
-    $app.innerHTML=`
-      <div class="card">
-        <h1>Detective Club Helper</h1>
-        <p class="muted">디텍티브 클럽 보드게임 made by 베이오락실 with chatgpt</p>
-        <div class="divider"></div>
-
-        <label>모드 선택</label>
-        <select id="mode">
-          <option value="LITE" ${state.mode==="LITE"?"selected":""}>LITE (탭으로 빠르게 투표)</option>
-          <option value="FULL" ${state.mode==="FULL"?"selected":""}>FULL (컴포넌트 없을때)</option>
-        </select>
-
-        <div class="grid2">
-          <div>
-            <label>참가자 수</label>
-            <input id="N" inputmode="numeric" value="${state.N}" />
-          </div>
-          <div>
-            <label>총 라운드 수 (0 = 무제한)</label>
-            <input id="R" inputmode="numeric" value="${state.totalRounds}" />
-          </div>
-        </div>
-
-        <label>플레이어 이름</label>
-        <div id="nameList"></div>
-
-        <button class="btn" id="start">설정 완료 → 라운드 1</button>
-        <button class="btn secondary" id="reset">전체 초기화</button>
-
-        <div class="notice">iPhone에서 자동 잠금 OFF 추천 (게임 흐름 유지)</div>
-      </div>
-    `;
-
-    document.getElementById("mode").onchange=(e)=>{ state.mode=e.target.value; save(); };
-
-    const nameList=document.getElementById("nameList");
-    function renderNameInputs(n){
-      let html="";
-      for(let i=1;i<=n;i++){
-        const p=playerById(i);
-        const cls=p?.isDefaultName ? "nameInput defaultName" : "nameInput realName";
-        html += `
-          <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
-            ${numTokenHTML(i)}
-            <input class="${cls}" data-pid="${i}" value="${escapeHtml(p?.name ?? `Player ${i}`)}" />
-          </div>
-        `;
-      }
-      nameList.innerHTML=html;
-
-      nameList.querySelectorAll("input[data-pid]").forEach(inp=>{
-        inp.addEventListener("focus",(e)=>{
-          const id=parseInt(e.target.getAttribute("data-pid"),10);
-          const p=playerById(id);
-          if(p?.isDefaultName) e.target.value="";
-        });
-        inp.addEventListener("input",(e)=>{
-          const id=parseInt(e.target.getAttribute("data-pid"),10);
-          const p=playerById(id);
-          if(!p) return;
-          const v=e.target.value;
-          p.name=v;
-          if(v.trim().length>0){
-            p.isDefaultName=false;
-            e.target.classList.remove("defaultName");
-            e.target.classList.add("realName");
-          }else{
-            p.isDefaultName=true;
-            e.target.classList.add("defaultName");
-            e.target.classList.remove("realName");
-          }
-          save();
-        });
-        inp.addEventListener("blur",(e)=>{
-          const id=parseInt(e.target.getAttribute("data-pid"),10);
-          const p=playerById(id);
-          if(!p) return;
-          if((e.target.value||"").trim().length===0){
-            p.name=`Player ${id}`;
-            p.isDefaultName=true;
-            e.target.value=p.name;
-            e.target.classList.add("defaultName");
-            e.target.classList.remove("realName");
-            save();
-          }
-        });
-      });
-    }
-    renderNameInputs(state.N);
-
-    document.getElementById("N").addEventListener("input",(e)=>{
-      const n=clampInt(e.target.value,3,20,state.N);
-      ensurePlayersForN(n); save(); renderNameInputs(n);
-    });
-
-    document.getElementById("start").onclick=()=>{
-      const N=clampInt(document.getElementById("N").value,3,20,state.N);
-      const R=clampInt(document.getElementById("R").value,0,50,0);
-      ensurePlayersForN(N);
-      state.totalRounds=R;
-      state.round=1;
-      state.hostId=1;
-      state.keyword="";
-      state.liarId=null;
-
-      state.players = state.players.map(p=>{
-        const name=(p.name||"").trim();
-        const finalName=name.length? name : `Player ${p.id}`;
-        const isDef=p.isDefaultName ?? isLooksLikeDefault(finalName,p.id);
-        return ({...p, score:0, color:p.color||colorForId(p.id), name:finalName, isDefaultName:isDef});
-      });
-
-      state.lastRoundDelta={};
-      state._lastAccCount=0;
-      state.roulette={ running:false, show:false, shownName:"", done:false, fx:false };
-      save();
-      setPhase("ROUND_SETUP");
-    };
-
-    document.getElementById("reset").onclick=()=>{
-      if(confirm("정말 초기화할까요? 점수와 설정이 모두 리셋됩니다.")) resetAll();
-    };
-  }
-
-  function renderRoundSetup(){
-    const hostOptions = state.players.map(p =>
-      `<option value="${p.id}" ${p.id===state.hostId?'selected':''}>${escapeHtml(p.name)} (${p.id}번)</option>`
-    ).join("");
-    const hostScore = playerById(state.hostId)?.score ?? 0;
-
-    $app.innerHTML=`
-      <div class="card">
-        <div class="row">
-          <h1>라운드 ${state.round}</h1>
-          <span class="pill">제시자: ${pmarkHTML(state.hostId)}</span>
-        </div>
-
-        <p class="muted">제시어를 입력하세요. (라이어는 랜덤, 제시자는 모름)</p>
-        <p class="muted">※ 제시자에게만 보임 · 현재 누적 점수: <b>${hostScore}</b></p>
-
-        <label>제시자</label>
-        <select id="host">${hostOptions}</select>
-
-        <label>제시어</label>
-        <input id="keyword" placeholder="예) 우주, 커피, 비 오는 날..." value="${escapeHtml(state.keyword||"")}" />
-
-        <button class="btn" id="go">제시어 분배 시작</button>
-        <button class="btn secondary" id="home">홈으로</button>
-
-        ${state.totalRounds===0 ? `<button class="btn danger" id="endGame">게임 종료 (점수표 공개)</button>` : ``}
-      </div>
-    `;
-
-    document.getElementById("host").onchange=(e)=>{ state.hostId=clampInt(e.target.value,1,state.N,1); save(); render(); };
-    document.getElementById("go").onclick=()=>{
-      const kw=(document.getElementById("keyword").value||"").trim();
-      if(!kw){ toast("제시어를 입력해 주세요."); return; }
-      state.keyword=kw; save(); startRound();
-    };
-    document.getElementById("home").onclick=()=>setPhase("HOME");
-    const endBtn=document.getElementById("endGame");
-    if(endBtn){
-      endBtn.onclick=()=>{
-        if(confirm("지금 게임을 종료하고 전체 점수표를 공개할까요?")){
-          setPhase("GAME_END");
-        }
-      };
-    }
-  }
-
-  function startRound(){
-    state.keyword=(state.keyword||"").trim();
-    state.revealOrder=makeOrderAfterHost(state.N, state.hostId);
-    state.cursor=0;
-    state.revealed={};
-    state.votes={};
-    state.accusations={};
-    state.voteOrder=[];
-    state.voteCursor=0;
-    state.lastRoundDelta={};
-    state._lastAccCount=0;
-    state.roulette={ running:false, show:false, shownName:"", done:false, fx:false };
-
-    state.liarId = pickRandom(state.revealOrder);
-    save();
-    setPhase("REVEAL");
-  }
-
-  function renderReveal(){
-    const order=state.revealOrder||[];
-    const total=order.length;
-    if(state.cursor>=total){ setPhase("PLAY_START"); return; }
-
-    const currentId=order[state.cursor];
-    const already=!!state.revealed?.[currentId];
-    const isLiar=(currentId===state.liarId);
-    const secretText=isLiar ? "당신은 라이어입니다. 제시어를 유추해보세요." : `제시어는 “${state.keyword}” 입니다.`;
-    const curScore = playerById(currentId)?.score ?? 0;
-
-    $app.innerHTML=`
-      <div class="card">
-        <div class="row">
-          <h1>제시어 확인</h1>
-          <span class="pill">${state.cursor+1} / ${total}</span>
-        </div>
-
-        <p class="center" style="font-size:22px; font-weight:1000; margin:8px 0 4px;">${pmarkHTML(currentId)} 차례</p>
-        <p class="muted center">※ 이 화면을 보고 있는 사람에게만 보임 · 현재 누적 점수: <b>${curScore}</b></p>
-
-        <div class="pressArea" id="pressArea">
-          <p class="center">${already ? "이미 확인했습니다." : "2초간 꾹 눌러 공개하세요."}</p>
-          <div class="progressWrap"><div class="progressBar"></div></div>
-          <div class="revealBox" id="revealBox">${already ? escapeHtml(secretText) : "(여기에 표시)"}</div>
-        </div>
-
-        <button class="btn" id="confirm" ${already ? "" : "disabled"}>다음 참가자에게 넘기기</button>
-        <button class="btn secondary" id="abort">라운드 설정으로 (리셋)</button>
-      </div>
-    `;
-
-    const revealBox=document.getElementById("revealBox");
-    const confirmBtn=document.getElementById("confirm");
-
-    if(!already){
-      attachLongPressOnce(document.getElementById("pressArea"), ()=>{
-        state.revealed[currentId]=true; save();
-        revealBox.style.opacity="1";
-        revealBox.textContent=secretText;
-        confirmBtn.disabled=false;
-        toast("확인 완료!");
-      });
-    }else{
-      revealBox.style.opacity="1";
-      confirmBtn.disabled=false;
-    }
-
-    confirmBtn.onclick=()=>{ if(!state.revealed[currentId]) return; setPhase("PASS_NEXT"); };
-
-    document.getElementById("abort").onclick=()=>{
-      if(confirm("리빌을 중단하고 라운드 설정으로 돌아갈까요? (이번 라운드 진행은 초기화됩니다)")){
-        state.revealOrder=[]; state.cursor=0; state.revealed={};
-        state.votes={}; state.accusations={}; state.liarId=null;
-        state.voteOrder=[]; state.voteCursor=0;
-        state.lastRoundDelta={}; state._lastAccCount=0;
-        state.roulette={ running:false, show:false, shownName:"", done:false, fx:false };
-        save(); setPhase("ROUND_SETUP");
-      }
-    };
-  }
-
-  function renderPassNext(){
-    const order=state.revealOrder||[];
-    const total=order.length;
-    const currentId=order[state.cursor];
-    const nextId=(state.cursor+1<total) ? order[state.cursor+1] : state.hostId;
-
-    $app.innerHTML=`
-      <div class="card">
-        <h1 class="center">다음 사람에게 넘기기</h1>
-        <p class="center">이 화면 그대로 <b>다음 사용자에게 휴대폰을 넘겨주세요.</b></p>
-        <p class="muted center">
-          방금 확인: ${pmarkHTML(currentId)}
-          · 다음 사용자: ${pmarkHTML(nextId)}
-          · 진행: ${state.cursor+1}/${total}
-        </p>
-        <button class="btn" id="next">${state.cursor+1<total ? "다음 참가자 시작" : "제시자에게 돌아가기"}</button>
-      </div>
-    `;
-
-    document.getElementById("next").onclick=()=>{
-      state.cursor+=1; save(); setPhase("REVEAL");
-    };
-  }
-
-  function renderPlayStart(){
-    $app.innerHTML=`
-      <div class="card">
-        <h1 class="center">게임을 시작합니다!</h1>
-        <p class="center">오프라인에서 카드 2장씩 내려놓고 토론 후,<br/><b>라이어 지목</b>을 진행하세요.</p>
-
-        <button class="btn" id="goRecap">라이어 지목으로</button>
-        <button class="btn secondary" id="setup">라운드 설정으로</button>
-      </div>
-    `;
-    document.getElementById("goRecap").onclick=()=>setPhase("KEYWORD_RECAP");
-    document.getElementById("setup").onclick=()=>setPhase("ROUND_SETUP");
-  }
-
-  function renderKeywordRecap(){
-    $app.innerHTML=`
-      <div class="card">
-        <h1 class="center">제시어 리마인드</h1>
-        <p class="center muted">지목 시작 전에 제시어를 다시 확인하세요.</p>
-
-        <div class="rouletteBox" style="background:#fff;color:#111;border:1px solid #eef0f6;">
-          <div style="font-weight:1000; font-size:20px;">“${escapeHtml(state.keyword)}”</div>
-          <div class="muted" style="margin-top:6px;">※ 라이어는 제시어를 모릅니다</div>
-        </div>
-
-        <button class="btn" id="startVote">지목 시작</button>
-        <button class="btn secondary" id="back">뒤로</button>
-      </div>
-    `;
-    document.getElementById("startVote").onclick=()=>startVoting();
-    document.getElementById("back").onclick=()=>setPhase("PLAY_START");
-  }
-
-  function startVoting(){
-    state.voteOrder = makeOrderAfterHost(state.N, state.hostId);
-    state.voteCursor=0;
-    state.votes={};
-    state.accusations={};
-    save();
-    setPhase("VOTING");
-  }
-
-  function renderVoting(){
-    const voters=state.voteOrder||[];
-    const total=voters.length;
-
-    if(state.voteCursor>=total){
-      applyScoring();
-      setPhase("RESULT_ROULETTE");
-      return;
-    }
-
-    const currentVoterId=voters[state.voteCursor];
-    const targets=voters;
-
-    $app.innerHTML=`
-      <div class="card">
-        <div class="row">
-          <h1>라이어 지목</h1>
-          <span class="pill">${state.voteCursor+1} / ${total}</span>
-        </div>
-
-        <p class="center" style="font-size:22px; font-weight:1000; margin:10px 0 6px;">지금 차례: ${pmarkHTML(currentVoterId)}</p>
-
-        ${state.mode==="FULL"
-          ? `<p class="center muted">아래에서 라이어라고 생각하는 사람을 <b>0.5초간 꾹</b> 눌러 확정하세요.</p>
-             <div class="tileHoldHint">짧게 탭하면 선택만 되고, 0.5초 꾹 눌러야 확정됩니다.</div>`
-          : `<p class="center muted">아래에서 라이어라고 생각하는 사람을 <b>터치</b>해서 선택하세요.</p>
-             <div class="tileHoldHint">실수하면 “이번 차례 되돌리기”로 복구 가능합니다.</div>`
-        }
-
-        <div class="tiles" id="tiles"></div>
-
-        <div class="divider"></div>
-
-        <button class="btn secondary" id="undo">이번 차례 되돌리기</button>
-        <button class="btn secondary" id="cancel">취소(라운드로)</button>
-      </div>
-    `;
-
-    const tiles=document.getElementById("tiles");
-    tiles.innerHTML=targets.map(tid=>{
-      const disabled=(tid===currentVoterId);
-      return `
-        <div class="tile ${disabled?"disabled":""}" data-target="${tid}" data-disabled="${disabled?"1":"0"}">
-          <div class="tileTitle">${pmarkHTML(tid,true)}</div>
-          <div class="tileSub">${tid}번</div>
-          ${state.mode==="FULL" ? `<div class="tileHoldBarWrap"><div class="tileHoldBar"></div></div>` : ``}
-        </div>
-      `;
-    }).join("");
-
-    document.querySelectorAll(".tile").forEach(el=>{
-      el.setAttribute("draggable","false");
-      el.addEventListener("contextmenu",(e)=>e.preventDefault());
-      el.addEventListener("selectstart",(e)=>e.preventDefault());
-      el.addEventListener("dragstart",(e)=>e.preventDefault());
-    });
-
-    document.querySelectorAll(".tile[data-target]").forEach(tile=>{
-      const tid=parseInt(tile.getAttribute("data-target"),10);
-      const disabled=(tile.getAttribute("data-disabled")==="1");
-
-      if(state.mode==="LITE"){
-        tile.addEventListener("click",(e)=>{
-          e.preventDefault(); clearTextSelection();
-          if(disabled){ toast("자기 자신은 지목할 수 없어요."); return; }
-          registerVote(currentVoterId, tid);
-          state.voteCursor+=1; save();
-          haptic(12);
-          render();
-        }, {passive:false});
-        return;
-      }
-
-      const bar=tile.querySelector(".tileHoldBar");
-      let holding=false, startedAt=0, raf=null, completed=false;
-      const resetBar=()=>{ if(bar) bar.style.width="0%"; };
-
-      const update=()=>{
-        if(!holding) return;
-        const elapsed=performance.now()-startedAt;
-        const p=Math.min(1, elapsed/500);
-        if(bar) bar.style.width=(p*100).toFixed(1)+"%";
-        if(p>=1 && !completed){
-          completed=true; holding=false;
-          if(raf) cancelAnimationFrame(raf);
-
-          tile.classList.add("popping");
-          haptic(18);
-
-          setTimeout(()=>{
-            tile.classList.remove("popping");
-            registerVote(currentVoterId, tid);
-            state.voteCursor+=1; save();
-            render();
-          },120);
-        }else{
-          raf=requestAnimationFrame(update);
-        }
-      };
-
-      const start=(e)=>{
-        if(e.cancelable) e.preventDefault();
-        clearTextSelection();
-        if(disabled){ toast("자기 자신은 지목할 수 없어요."); return; }
-        if(completed) return;
-
-        document.querySelectorAll(".tile.selected").forEach(x=>x.classList.remove("selected"));
-        tile.classList.add("selected");
-
-        holding=true; startedAt=performance.now(); completed=false;
-        resetBar();
-        raf=requestAnimationFrame(update);
-      };
-      const end=(e)=>{
-        if(e.cancelable) e.preventDefault();
-        clearTextSelection();
-        if(!holding) return;
-        holding=false;
-        if(raf) cancelAnimationFrame(raf);
-        if(!completed) resetBar();
-      };
-
-      tile.addEventListener("pointerdown", start, {passive:false});
-      tile.addEventListener("pointerup", end, {passive:false});
-      tile.addEventListener("pointercancel", end, {passive:false});
-      tile.addEventListener("pointerleave", end, {passive:false});
-    });
-
-    document.getElementById("undo").onclick=()=>{
-      if(state.voteCursor<=0){ toast("되돌릴 차례가 없어요."); return; }
-      const prevVoterId=voters[state.voteCursor-1];
-      delete state.votes[prevVoterId];
-      rebuildAccusations();
-      state.voteCursor-=1; save();
-      toast("한 차례 되돌렸어요.");
-      render();
-    };
-
-    document.getElementById("cancel").onclick=()=>{
-      if(confirm("지목을 취소하고 라운드 화면으로 돌아갈까요? (지목 진행은 초기화됩니다)")){
-        state.votes={}; state.accusations={}; state.voteOrder=[]; state.voteCursor=0;
-        save(); setPhase("ROUND_SETUP");
-      }
-    };
-  }
-
-  function renderResultRoulette(){
-    $app.innerHTML=`
-      <div class="card">
-        <h1 class="center">라이어 공개</h1>
-        <p class="center muted">짜잔… 라이어는 누구였을까요?</p>
-
-        <div class="rouletteBox" id="rouletteBox">
-          <div class="rouletteName" id="rouletteName">…</div>
-          <div class="rouletteSub" id="rouletteSub">라이어는 누구일까요?</div>
-        </div>
-
-        <div id="afterBox" style="display:none;">
-          <div class="divider"></div>
-          <h2>이번 라운드 획득 점수 (Δ)</h2>
-          <p class="muted">총점은 게임 종료 시에만 공개됩니다.</p>
-          <div class="deltaList" id="deltaList"></div>
-
-          <button class="btn" id="next">다음 라운드</button>
-          <button class="btn secondary" id="setup">라운드 설정으로</button>
-          <button class="btn danger" id="end">게임 종료 (점수표 공개)</button>
-        </div>
-      </div>
-    `;
-
-    const nameEl=document.getElementById("rouletteName");
-    const subEl=document.getElementById("rouletteSub");
-    const box=document.getElementById("rouletteBox");
-    const afterBox=document.getElementById("afterBox");
-
-    if(!state.roulette.running && !state.roulette.done){
-      startRoulette();
-    }
-
-    nameEl.textContent = state.roulette.shownName || "…";
-    subEl.textContent = "라이어는 누구일까요?";
-
-    if(state.roulette.done){
-      const c=pcolor(state.liarId);
-      box.style.boxShadow = `0 16px 38px ${hexToRgba(c,0.28)}`;
-
-      afterBox.style.display="block";
-
-      // ✅ run border sweep if liar accused <= 1
-      if(state.roulette.fx){
-        state.roulette.fx=false;
-        save();
-        setTimeout(()=>runBorderSweep(box, c), 90);
-      }
-
-      const dl=document.getElementById("deltaList");
-      dl.innerHTML = Array.from({length:state.N}, (_,i)=>i+1).map(id=>{
-        const d = state.lastRoundDelta?.[id] ?? 0;
-        const sign = d>0 ? `+${d}` : `${d}`;
-        return `
-          <div class="deltaRow">
-            <div>${pmarkHTML(id,true)}</div>
-            <div class="deltaVal">${sign}</div>
-          </div>
-        `;
-      }).join("");
-
-      document.getElementById("next").onclick=()=>{
-        if(maybeEndByRoundLimit()) return;
-        nextRound();
-      };
-      document.getElementById("setup").onclick=()=>setPhase("ROUND_SETUP");
-      document.getElementById("end").onclick=()=>{
-        if(confirm("지금 게임을 종료하고 전체 점수표를 공개할까요?")){
-          setPhase("GAME_END");
-        }
-      };
-    }
-  }
-
-  function renderGameEnd(){
-    $app.innerHTML=`
-      <div class="card">
-        <h1 class="center">게임 종료</h1>
-        <p class="center muted">전체 점수표 공개!</p>
-        <div class="divider"></div>
-        ${renderScoreTable()}
-        <button class="btn" id="home">홈으로</button>
-        <button class="btn secondary" id="restart">새 게임 시작(초기화)</button>
-      </div>
-    `;
-    document.getElementById("home").onclick=()=>setPhase("HOME");
-    document.getElementById("restart").onclick=()=>{
-      if(confirm("새 게임으로 초기화할까요?")) resetAll();
-    };
-  }
-
-  function renderScoreTable(){
-    const sorted=[...state.players].sort((a,b)=>b.score-a.score);
-    const rows=sorted.map(p=>{
-      const c=p.color||colorForId(p.id);
-      const bg=hexToRgba(c,0.25);
-      return `
-        <tr>
-          <td style="padding:10px 6px; border-bottom:1px solid #eef0f6;">
-            <span class="pmark" style="--c:${c};--bg:${bg}">
-              <span class="dot" style="--c:${c}"></span>
-              <span>${escapeHtml(p.name)}</span>
-              <span class="pno">${p.id}번</span>
-            </span>
-          </td>
-          <td style="padding:10px 6px; border-bottom:1px solid #eef0f6; font-weight:1000; font-size:16px;">
-            ${p.score}
-          </td>
-        </tr>
-      `;
-    }).join("");
-
-    return `
-      <table style="width:100%; border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th style="padding:10px 6px; border-bottom:1px solid #eef0f6; text-align:left; font-size:13px; color:#666;">플레이어</th>
-            <th style="padding:10px 6px; border-bottom:1px solid #eef0f6; text-align:left; font-size:13px; color:#666;">총점</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-  }
-
-  function escapeHtml(str){
-    return (str ?? "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;");
-  }
-
+/* ===== State ===== */
+let state={
+  screen:"home",
+  mode:"lite",
+  players:[],
+  presenter:0,
+  keyword:"",
+  liar:null,
+  rouletteIdx:0,
+  accCount:0
+};
+
+const app=document.getElementById("app");
+
+/* ===== Utils ===== */
+const rand=(n)=>Math.floor(Math.random()*n);
+const nextOrder=(n,start)=>{
+  const arr=[];
+  for(let i=1;i<n;i++)arr.push((start+i)%n);
+  return arr;
+};
+
+/* ===== Screens ===== */
+function render(){
+  app.innerHTML="";
+  if(state.screen==="home") home();
+  if(state.screen==="reveal") reveal();
+  if(state.screen==="roulette") roulette();
+}
+
+/* ===== Home ===== */
+function home(){
+  app.innerHTML=`
+  <div class="card">
+    <h1>Detective Club Helper</h1>
+    <div class="sub">디텍티브 클럽 보드게임 · made by 베이오락실 with ChatGPT</div>
+  </div>
+
+  <div class="card">
+    <div class="mode">
+      <input type="radio" id="m1" name="m" checked onchange="state.mode='lite'">
+      <label for="m1">LITE<br><span class="sub">오프라인 토큰</span></label>
+      <input type="radio" id="m2" name="m" onchange="state.mode='full'">
+      <label for="m2">FULL<br><span class="sub">컴포넌트 없을 때</span></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <input placeholder="참가자 이름 (쉼표로 구분)" style="width:100%;padding:12px;border-radius:10px;border:1px solid #ddd"
+      oninput="state.players=this.value.split(',').map(v=>v.trim()).filter(Boolean)">
+  </div>
+
+  <button class="btn" onclick="start()">시작</button>
+  `;
+}
+
+/* ===== Start ===== */
+function start(){
+  if(state.players.length<3)return alert("3명 이상 필요");
+  state.presenter=0;
+  state.keyword=prompt("제시어 입력");
+  state.liar=rand(state.players.length);
+  state.order=nextOrder(state.players.length,state.presenter);
+  state.revealIdx=0;
+  state.screen="reveal";
   render();
-})();
+}
+
+/* ===== Reveal ===== */
+function reveal(){
+  const idx=state.order[state.revealIdx];
+  const isLiar=idx===state.liar;
+  app.innerHTML=`
+    <div class="card">
+      <div class="hold">${isLiar?"당신은 라이어":"제시어: "+state.keyword}</div>
+      <div class="hint">2초간 눌러 확인 후 다음 사람에게 전달</div>
+    </div>
+    <button class="btn" onclick="nextReveal()">다음</button>
+    <button class="btn ghost" onclick="location.reload()">라운드 초기화</button>
+  `;
+}
+
+function nextReveal(){
+  state.revealIdx++;
+  if(state.revealIdx>=state.order.length){
+    state.screen="roulette";
+  }
+  render();
+}
+
+/* ===== Roulette ===== */
+function roulette(){
+  app.innerHTML=`
+    <div class="card">
+      <div class="rouletteBox" id="rb">
+        <div class="liarBanner" id="lb">👑 LIAR WINS</div>
+        <div class="liarStamp" id="ls">PERFECT<br>BLUFF</div>
+        <div class="rouletteName" id="rn">라이어는 누구일까요?</div>
+      </div>
+    </div>
+    <button class="btn" onclick="spin()">확인</button>
+  `;
+}
+
+function spin(){
+  const rn=document.getElementById("rn");
+  let i=0;
+  const t=setInterval(()=>{
+    rn.textContent=state.players[i%state.players.length];
+    i++;
+  },80);
+  setTimeout(()=>{
+    clearInterval(t);
+    rn.textContent=state.players[state.liar];
+    if(state.accCount<=1){
+      document.getElementById("lb").classList.add("show");
+      setTimeout(()=>document.getElementById("ls").classList.add("show"),200);
+    }
+  },1400);
+}
+
+render();
 </script>
 </body>
 </html>
