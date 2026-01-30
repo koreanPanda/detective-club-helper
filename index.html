@@ -1088,8 +1088,8 @@
         <p class="center muted">짜잔… 라이어는 누구였을까요?</p>
 
         <div class="rouletteBox" id="rouletteBox">
-          <div class="liarBanner" id="liarBanner">👑 LIAR WINS</div>
-          <div class="liarStamp" id="liarStamp">PERFECT<br>BLUFF</div>
+          // <div class="liarBanner" id="liarBanner">👑 LIAR WINS</div>
+          // <div class="liarStamp" id="liarStamp">PERFECT<br>BLUFF</div>
 
           <div class="rouletteName" id="rouletteName">…</div>
           <div class="rouletteSub" id="rouletteSub">라이어는 누구일까요?</div>
@@ -1116,17 +1116,25 @@
       startRoulette();
     }
 
-    nameEl.textContent = state.roulette.shownName || "…";
+    const shown = state.roulette.shownName || "…";
+    const liarSuccess = (state._lastAccCount || 0) <= 1;
+    
+    if(state.roulette.done){
+      // 라이어 성공(1표 이하)일 때만 왕관 표시
+      nameEl.textContent = (liarSuccess ? "👑 " : "") + shown;
+    } else {
+      nameEl.textContent = shown;
+    }
 
     if(state.roulette.done){
       const liarSuccess = (state._lastAccCount||0) <= 1;
-      if(liarSuccess){
-        // Trigger banner + stamp only when liar succeeded
-        const banner = document.getElementById("liarBanner");
-        const stamp  = document.getElementById("liarStamp");
-        banner.classList.add("show");
-        setTimeout(()=> stamp.classList.add("show"), 220);
-      }
+      // if(liarSuccess){
+      //   // Trigger banner + stamp only when liar succeeded
+      //   const banner = document.getElementById("liarBanner");
+      //   const stamp  = document.getElementById("liarStamp");
+      //   banner.classList.add("show");
+      //   setTimeout(()=> stamp.classList.add("show"), 220);
+      // }
 
       afterBox.style.display="block";
 
