@@ -177,11 +177,46 @@
     .rouletteName{ font-size:24px; font-weight:1000; letter-spacing:.2px; }
     .rouletteSub{ opacity:.85; margin-top:8px; font-size:13px; }
 
-    /* highlight canvas */
-    .fxCanvas{
+    /* ✅ Border light sweep highlight (player color) */
+    .rouletteBox.borderGlow{
+      position:relative;
+      overflow:hidden;
+    }
+    .rouletteBox.borderGlow::before{
+      content:"";
       position:absolute;
-      inset:0;
+      inset:-6px;
+      border-radius:22px;
+      padding:3px; /* ring thickness */
+      background:conic-gradient(
+        from 0deg,
+        rgba(0,0,0,0) 0deg,
+        rgba(0,0,0,0) 240deg,
+        var(--glow, #ffffff) 300deg,
+        rgba(0,0,0,0) 360deg
+      );
+
+      /* show only border ring */
+      -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      -webkit-mask-composite:xor;
+      mask-composite:exclude;
+
+      filter: blur(0.6px);
+      opacity:0;
+      transform: rotate(0deg);
       pointer-events:none;
+    }
+    .rouletteBox.borderGlow.runGlow::before{
+      opacity:1;
+      animation: borderSweep 1.25s ease-out 1;
+    }
+    @keyframes borderSweep{
+      0%   { transform: rotate(0deg);   opacity:0; }
+      8%   { opacity:1; }
+      85%  { opacity:1; }
+      100% { transform: rotate(360deg); opacity:0; }
     }
 
     .deltaList{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
@@ -209,7 +244,7 @@
 
 <script>
 (() => {
-  const STORAGE_KEY = "dc_helper_v12_roulette_pulse_highlight";
+  const STORAGE_KEY = "dc_helper_v13_border_sweep_glow";
 
   const PASTELS = [
     "#FFD6A5","#FDFFB6","#CAFFBF","#9BF6FF","#A0C4FF",
@@ -219,7 +254,7 @@
   ];
 
   const defaultState = {
-    mode: "LITE", // ✅ default LITE
+    mode: "LITE", // default LITE
     N: 6,
     totalRounds: 0,
     round: 1,
@@ -526,113 +561,20 @@
     setPhase("ROUND_SETUP");
   }
 
-  // ✅ New highlight FX: radial pulse rings + spark burst (no falling confetti)
-  function launchHighlightFX(canvas, accentHex){
-    if(!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
-    canvas.width = Math.floor(rect.width * dpr);
-    canvas.height = Math.floor(rect.height * dpr);
-    canvas.style.width = rect.width + "px";
-    canvas.style.height = rect.height + "px";
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-
-    const W = rect.width, H = rect.height;
-    const cx = W/2, cy = H/2;
-
-    const accent = accentHex || "#FFFFFF";
-    const glow = hexToRgba(accent, 0.35);
-
-    const sparks = [];
-    const sparkCount = 46;
-    for(let i=0;i<sparkCount;i++){
-      const ang = (Math.PI*2) * (i/sparkCount) + (Math.random()-0.5)*0.18;
-      const spd = 2.0 + Math.random()*3.2;
-      sparks.push({
-        x: cx, y: cy,
-        vx: Math.cos(ang)*spd,
-        vy: Math.sin(ang)*spd,
-        life: 1,
-        w: 1 + Math.random()*1.4
-      });
-    }
-
-    const start = performance.now();
-    const dur = 980;
-
-    function easeOutCubic(t){ return 1 - Math.pow(1-t, 3); }
-
-    function frame(now){
-      const t = (now - start) / dur;
-      const k = Math.min(1, Math.max(0, t));
-      const e = easeOutCubic(k);
-
-      ctx.clearRect(0,0,W,H);
-
-      // background soft flash
-      ctx.save();
-      ctx.globalAlpha = (1-k) * 0.22;
-      ctx.fillStyle = glow;
-      ctx.fillRect(0,0,W,H);
-      ctx.restore();
-
-      // center glow blob
-      ctx.save();
-      ctx.globalAlpha = (1-k) * 0.9;
-      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 140);
-      grd.addColorStop(0, hexToRgba(accent, 0.55));
-      grd.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 160, 0, Math.PI*2);
-      ctx.fill();
-      ctx.restore();
-
-      // pulse rings (2~3)
-      const ring1 = 18 + e*120;
-      const ring2 = Math.max(0, -0.18 + k) ? (10 + easeOutCubic(Math.max(0, (k-0.18)/0.82))*170) : 0;
-      const ring3 = Math.max(0, -0.34 + k) ? (8 + easeOutCubic(Math.max(0, (k-0.34)/0.66))*220) : 0;
-
-      function drawRing(r, alpha){
-        if(r<=0) return;
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.strokeStyle = hexToRgba(accent, 0.85);
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI*2);
-        ctx.stroke();
-        ctx.restore();
-      }
-      drawRing(ring1, (1-k)*0.75);
-      drawRing(ring2, (1-k)*0.55);
-      drawRing(ring3, (1-k)*0.35);
-
-      // sparks
-      sparks.forEach(s=>{
-        s.x += s.vx * 1.1;
-        s.y += s.vy * 1.1;
-        s.life = Math.max(0, 1 - k);
-        ctx.save();
-        ctx.globalAlpha = s.life * 0.95;
-        ctx.strokeStyle = hexToRgba(accent, 0.9);
-        ctx.lineWidth = s.w;
-        ctx.beginPath();
-        ctx.moveTo(s.x, s.y);
-        ctx.lineTo(s.x - s.vx*6, s.y - s.vy*6);
-        ctx.stroke();
-        ctx.restore();
-      });
-
-      if(k < 1) requestAnimationFrame(frame);
-      else ctx.clearRect(0,0,W,H);
-    }
-
-    requestAnimationFrame(frame);
+  /* ✅ Border sweep runner */
+  function runBorderSweep(el, accentHex){
+    if(!el) return;
+    if(accentHex) el.style.setProperty("--glow", accentHex);
+    el.classList.add("borderGlow");
+    void el.offsetWidth; // restart
+    el.classList.add("runGlow");
+    setTimeout(()=>{
+      el.classList.remove("runGlow");
+      // keep borderGlow so next time it's ready (optional)
+    }, 1350);
   }
 
-  // --- Roulette (slower) ---
+  // --- Roulette ---
   function startRoulette(){
     if(state.roulette.running) return;
     state.roulette.running=true;
@@ -664,7 +606,6 @@
         render();
         haptic(28);
 
-        // highlight condition: liar accused <= 1
         if((state._lastAccCount||0) <= 1){
           state.roulette.fx = true;
           save();
@@ -698,7 +639,6 @@
     }
   }
 
-  // --- screens ---
   function renderHome(){
     $app.innerHTML=`
       <div class="card">
@@ -870,6 +810,24 @@
     }
   }
 
+  function startRound(){
+    state.keyword=(state.keyword||"").trim();
+    state.revealOrder=makeOrderAfterHost(state.N, state.hostId);
+    state.cursor=0;
+    state.revealed={};
+    state.votes={};
+    state.accusations={};
+    state.voteOrder=[];
+    state.voteCursor=0;
+    state.lastRoundDelta={};
+    state._lastAccCount=0;
+    state.roulette={ running:false, show:false, shownName:"", done:false, fx:false };
+
+    state.liarId = pickRandom(state.revealOrder);
+    save();
+    setPhase("REVEAL");
+  }
+
   function renderReveal(){
     const order=state.revealOrder||[];
     const total=order.length;
@@ -987,6 +945,15 @@
     `;
     document.getElementById("startVote").onclick=()=>startVoting();
     document.getElementById("back").onclick=()=>setPhase("PLAY_START");
+  }
+
+  function startVoting(){
+    state.voteOrder = makeOrderAfterHost(state.N, state.hostId);
+    state.voteCursor=0;
+    state.votes={};
+    state.accusations={};
+    save();
+    setPhase("VOTING");
   }
 
   function renderVoting(){
@@ -1142,7 +1109,6 @@
         <p class="center muted">짜잔… 라이어는 누구였을까요?</p>
 
         <div class="rouletteBox" id="rouletteBox">
-          <canvas class="fxCanvas" id="fx"></canvas>
           <div class="rouletteName" id="rouletteName">…</div>
           <div class="rouletteSub" id="rouletteSub">라이어는 누구일까요?</div>
         </div>
@@ -1163,7 +1129,6 @@
     const nameEl=document.getElementById("rouletteName");
     const subEl=document.getElementById("rouletteSub");
     const box=document.getElementById("rouletteBox");
-    const fxCanvas=document.getElementById("fx");
     const afterBox=document.getElementById("afterBox");
 
     if(!state.roulette.running && !state.roulette.done){
@@ -1171,7 +1136,6 @@
     }
 
     nameEl.textContent = state.roulette.shownName || "…";
-    // ✅ keep the subtext as the suspense line (requested)
     subEl.textContent = "라이어는 누구일까요?";
 
     if(state.roulette.done){
@@ -1180,11 +1144,11 @@
 
       afterBox.style.display="block";
 
-      // ✅ highlight once (only when liar accused <= 1)
+      // ✅ run border sweep if liar accused <= 1
       if(state.roulette.fx){
         state.roulette.fx=false;
         save();
-        setTimeout(()=>launchHighlightFX(fxCanvas, c), 90);
+        setTimeout(()=>runBorderSweep(box, c), 90);
       }
 
       const dl=document.getElementById("deltaList");
