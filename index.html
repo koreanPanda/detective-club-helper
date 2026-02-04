@@ -177,57 +177,6 @@
     .rouletteName{ font-size:24px; font-weight:1000; letter-spacing:.2px; }
     .rouletteSub{ opacity:.85; margin-top:8px; font-size:13px; }
 
-    /* ✅ Liar victory UI (Banner + Stamp) */
-    .liarBanner{
-      position:absolute;
-      top:-18px;
-      left:50%;
-      transform:translateX(-50%) translateY(-20px) scale(.95);
-      background:#111;
-      color:#fff;
-      padding:8px 18px;
-      border-radius:999px;
-      font-weight:900;
-      letter-spacing:.04em;
-      opacity:0;
-      box-shadow:0 10px 30px rgba(0,0,0,.35);
-      z-index:3;
-    }
-    .liarBanner.show{
-      animation: bannerDrop .55s cubic-bezier(.2,1.4,.3,1) forwards;
-    }
-    @keyframes bannerDrop{
-      to{
-        opacity:1;
-        transform:translateX(-50%) translateY(0) scale(1);
-      }
-    }
-
-    .liarStamp{
-      position:absolute;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:32px;
-      font-weight:1000;
-      color:#c62828;
-      text-align:center;
-      transform:rotate(-12deg) scale(1.8);
-      opacity:0;
-      pointer-events:none;
-      text-shadow:0 3px 0 rgba(0,0,0,.25);
-      z-index:2;
-    }
-    .liarStamp.show{
-      animation: stampHit .45s cubic-bezier(.2,1.6,.4,1) forwards;
-    }
-    @keyframes stampHit{
-      0%{ opacity:0; transform:rotate(-12deg) scale(2.4); }
-      60%{ opacity:1; transform:rotate(-12deg) scale(.92); }
-      100%{ opacity:1; transform:rotate(-12deg) scale(1); }
-    }
-
     .deltaList{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
     .deltaRow{
       display:flex; align-items:center; justify-content:space-between;
@@ -286,12 +235,12 @@
     accusations: {},
     lastRoundDelta: {},
     _lastAccCount: 0,
-    roulette: { running:false, show:false, shownName:"", done:false },
-    roundHistory: [],  // 각 라운드 Δ 기록 [{ round, hostId, liarId, accCount, delta:{1:..} }]
-
+    roulette: { running:false, show:false, shownName:"", done:false }, // ✅ 콤마 필수
+    roundHistory: []  // ✅ 각 라운드 Δ 기록 [{ round, hostId, liarId, accCount, delta:{1:..} }]
   };
 
   let state = load() || initDefault();
+
   function initDefault(){
     const s = structuredClone(defaultState);
     s.players = [];
@@ -303,11 +252,13 @@
   }
 
   function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
   function load(){
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
       if(!raw) return null;
       const obj = JSON.parse(raw);
+
       obj.mode = obj.mode || "LITE";
       obj.players = (obj.players||[]).map(p => ({
         ...p,
@@ -318,10 +269,18 @@
       obj.roundHistory = obj.roundHistory || [];
       obj.roulette = obj.roulette || { running:false, show:false, shownName:"", done:false };
       return obj;
-    }catch{ return null; }
+    }catch{
+      return null;
+    }
   }
 
-  function resetAll(){ state = initDefault(); save(); render(); state.roundHistory = [];}
+  // ✅ 완전 초기화 (점수/기록/설정 포함)
+  function resetAll(){
+    localStorage.removeItem(STORAGE_KEY);
+    state = initDefault();
+    save();
+    render();
+  }
 
   // Disable browser back (anti-cheat)
   history.pushState({locked:true}, "");
@@ -492,6 +451,7 @@
 
   function startRound(){
     state.keyword=(state.keyword||"").trim();
+    // ✅ 제시어 확인 순서: 제시자 다음부터 유지
     state.revealOrder=makeOrderAfterHost(state.N, state.hostId);
     state.cursor=0;
     state.revealed={};
@@ -510,6 +470,7 @@
   }
 
   function startVoting(){
+    // ✅ 투표 진행 순서는 기존 유지(제시자 다음부터)
     state.voteOrder = makeOrderAfterHost(state.N, state.hostId);
     state.voteCursor=0;
     state.votes={};
@@ -559,13 +520,14 @@
       if(p) p.score += (delta[i]||0);
     }
     state.lastRoundDelta=delta;
+
     state.roundHistory = state.roundHistory || [];
     state.roundHistory.push({
       round: state.round,
       hostId: state.hostId,
       liarId: state.liarId,
       accCount: state._lastAccCount || 0,
-      delta: { ...delta }  // 라운드별 획득점(Δ)
+      delta: { ...delta }
     });
     save();
   }
@@ -756,6 +718,8 @@
       const R=clampInt(document.getElementById("R").value,0,50,0);
       ensurePlayersForN(N);
       state.totalRounds=R;
+
+      // ✅ 새 게임 시작 시 완전 초기화
       state.round=1;
       state.hostId=1;
       state.keyword="";
@@ -768,9 +732,11 @@
         return ({...p, score:0, color:p.color||colorForId(p.id), name:finalName, isDefaultName:isDef});
       });
 
-      state.lastRoundDelta={};
+      state.roundHistory = [];      // ✅ 기록 초기화
+      state.lastRoundDelta = {};    // ✅ Δ 초기화
       state._lastAccCount=0;
       state.roulette={ running:false, show:false, shownName:"", done:false };
+
       save();
       setPhase("ROUND_SETUP");
     };
@@ -956,7 +922,9 @@
     }
 
     const currentVoterId=voters[state.voteCursor];
-    const targets=voters;
+
+    // ✅ UI에 보이는 타겟(타일) 순서는 항상 1..N 고정 (단, 자기 자신 제외)
+    const targets = Array.from({length: state.N}, (_,i)=>i+1).filter(id => id !== currentVoterId);
 
     $app.innerHTML=`
       <div class="card">
@@ -985,9 +953,8 @@
 
     const tiles=document.getElementById("tiles");
     tiles.innerHTML=targets.map(tid=>{
-      const disabled=(tid===currentVoterId);
       return `
-        <div class="tile ${disabled?"disabled":""}" data-target="${tid}" data-disabled="${disabled?"1":"0"}">
+        <div class="tile" data-target="${tid}">
           <div class="tileTitle">${pmarkHTML(tid,true)}</div>
           <div class="tileSub">${tid}번</div>
           ${state.mode==="FULL" ? `<div class="tileHoldBarWrap"><div class="tileHoldBar"></div></div>` : ``}
@@ -1004,12 +971,10 @@
 
     document.querySelectorAll(".tile[data-target]").forEach(tile=>{
       const tid=parseInt(tile.getAttribute("data-target"),10);
-      const disabled=(tile.getAttribute("data-disabled")==="1");
 
       if(state.mode==="LITE"){
         tile.addEventListener("click",(e)=>{
           e.preventDefault(); clearTextSelection();
-          if(disabled){ toast("자기 자신은 지목할 수 없어요."); return; }
           registerVote(currentVoterId, tid);
           state.voteCursor+=1; save();
           haptic(12);
@@ -1048,7 +1013,6 @@
       const start=(e)=>{
         if(e.cancelable) e.preventDefault();
         clearTextSelection();
-        if(disabled){ toast("자기 자신은 지목할 수 없어요."); return; }
         if(completed) return;
 
         document.querySelectorAll(".tile.selected").forEach(x=>x.classList.remove("selected"));
@@ -1115,7 +1079,6 @@
     `;
 
     const nameEl=document.getElementById("rouletteName");
-    const box=document.getElementById("rouletteBox");
     const afterBox=document.getElementById("afterBox");
 
     if(!state.roulette.running && !state.roulette.done){
@@ -1124,24 +1087,14 @@
 
     const shown = state.roulette.shownName || "…";
     const liarSuccess = (state._lastAccCount || 0) <= 1;
-    
+
     if(state.roulette.done){
-      // 라이어 성공(1표 이하)일 때만 왕관 표시
       nameEl.textContent = (liarSuccess ? "👑 " : "") + shown;
     } else {
       nameEl.textContent = shown;
     }
 
     if(state.roulette.done){
-      const liarSuccess = (state._lastAccCount||0) <= 1;
-      // if(liarSuccess){
-      //   // Trigger banner + stamp only when liar succeeded
-      //   const banner = document.getElementById("liarBanner");
-      //   const stamp  = document.getElementById("liarStamp");
-      //   banner.classList.add("show");
-      //   setTimeout(()=> stamp.classList.add("show"), 220);
-      // }
-
       afterBox.style.display="block";
 
       const dl=document.getElementById("deltaList");
@@ -1186,115 +1139,79 @@
     };
   }
 
-  function renderScoreTable(){
-    const sorted=[...state.players].sort((a,b)=>b.score-a.score);
-    const rows=sorted.map(p=>{
-      const c=p.color||colorForId(p.id);
-      const bg=hexToRgba(c,0.25);
+  function renderFinalMatrixTable(){
+    const rounds = state.roundHistory || [];
+    const players = state.players || [];
+    const N = state.N || players.length;
+
+    const headerCells = players.map(p => {
+      const c = p.color || colorForId(p.id);
+      const bg = hexToRgba(c, 0.22);
+      return `
+        <th style="padding:10px 8px; border-bottom:1px solid #eef0f6; text-align:center;">
+          <span class="pmark" style="--c:${c};--bg:${bg}">
+            <span class="dot" style="--c:${c}"></span>
+            <span>${escapeHtml(p.name)}</span>
+          </span>
+        </th>
+      `;
+    }).join("");
+
+    const roundRows = rounds.map(r => {
+      const cells = players.map(p => {
+        const d = (r.delta && (r.delta[p.id] ?? 0)) ?? 0;
+        const sign = d > 0 ? `+${d}` : `${d}`;
+        return `<td style="padding:10px 8px; text-align:center; border-bottom:1px solid #f3f4fa; font-weight:900;">${sign}</td>`;
+      }).join("");
+
       return `
         <tr>
-          <td style="padding:10px 6px; border-bottom:1px solid #eef0f6;">
-            <span class="pmark" style="--c:${c};--bg:${bg}">
-              <span class="dot" style="--c:${c}"></span>
-              <span>${escapeHtml(p.name)}</span>
-              <span class="pno">${p.id}번</span>
-            </span>
+          <td style="padding:10px 8px; border-bottom:1px solid #f3f4fa; white-space:nowrap; font-weight:900; color:#444;">
+            R${r.round}
           </td>
-          <td style="padding:10px 6px; border-bottom:1px solid #eef0f6; font-weight:1000; font-size:16px;">
-            ${p.score}
-          </td>
+          ${cells}
         </tr>
       `;
     }).join("");
 
-    return `
-      <table style="width:100%; border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th style="padding:10px 6px; border-bottom:1px solid #eef0f6; text-align:left; font-size:13px; color:#666;">플레이어</th>
-            <th style="padding:10px 6px; border-bottom:1px solid #eef0f6; text-align:left; font-size:13px; color:#666;">총점</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-  }
-  function renderFinalMatrixTable(){
-  const rounds = state.roundHistory || [];
-  const players = state.players || [];
-  const N = state.N || players.length;
-
-  // 헤더(플레이어 이름)
-  const headerCells = players.map(p => {
-    const c = p.color || colorForId(p.id);
-    const bg = hexToRgba(c, 0.22);
-    return `
-      <th style="padding:10px 8px; border-bottom:1px solid #eef0f6; text-align:center;">
-        <span class="pmark" style="--c:${c};--bg:${bg}">
-          <span class="dot" style="--c:${c}"></span>
-          <span>${escapeHtml(p.name)}</span>
-        </span>
-      </th>
-    `;
-  }).join("");
-
-  // 라운드별 Δ row
-  const roundRows = rounds.map(r => {
-    const cells = players.map(p => {
-      const d = (r.delta && (r.delta[p.id] ?? 0)) ?? 0;
-      const sign = d > 0 ? `+${d}` : `${d}`;
-      return `<td style="padding:10px 8px; text-align:center; border-bottom:1px solid #f3f4fa; font-weight:900;">${sign}</td>`;
+    const totalCells = players.map(p => {
+      return `<td style="padding:12px 8px; text-align:center; font-weight:1000; font-size:16px;">${p.score}</td>`;
     }).join("");
 
+    const emptyState = rounds.length === 0
+      ? `<div class="muted" style="text-align:center; padding:14px 0;">아직 완료된 라운드가 없어요.</div>`
+      : "";
+
     return `
-      <tr>
-        <td style="padding:10px 8px; border-bottom:1px solid #f3f4fa; white-space:nowrap; font-weight:900; color:#444;">
-          R${r.round}
-        </td>
-        ${cells}
-      </tr>
-    `;
-  }).join("");
+      <div class="card" style="box-shadow:none; padding:0; margin:0;">
+        <div class="muted" style="margin:0 0 10px;">라운드별 획득 점수(Δ)와 총점을 한 번에 확인할 수 있어요.</div>
 
-  // 총점 row
-  const totalCells = players.map(p => {
-    return `<td style="padding:12px 8px; text-align:center; font-weight:1000; font-size:16px;">${p.score}</td>`;
-  }).join("");
+        ${emptyState}
 
-  const emptyState = rounds.length === 0
-    ? `<div class="muted" style="text-align:center; padding:14px 0;">아직 완료된 라운드가 없어요.</div>`
-    : "";
-
-  return `
-    <div class="card" style="box-shadow:none; padding:0; margin:0;">
-      <div class="muted" style="margin:0 0 10px;">라운드별 획득 점수(Δ)와 총점을 한 번에 확인할 수 있어요.</div>
-
-      ${emptyState}
-
-      <div style="overflow:auto; border-radius:14px; border:1px solid #eef0f6; background:#fff;">
-        <table style="width:100%; border-collapse:collapse; min-width:${Math.max(520, 130 + N*120)}px;">
-          <thead>
-            <tr>
-              <th style="padding:10px 8px; border-bottom:1px solid #eef0f6; text-align:left; color:#666; font-size:13px;">
-                라운드
-              </th>
-              ${headerCells}
-            </tr>
-          </thead>
-          <tbody>
-            ${roundRows}
-            <tr style="background:#fafbff;">
-              <td style="padding:12px 8px; font-weight:1000; border-top:1px solid #eef0f6;">
-                총점
-              </td>
-              ${totalCells}
-            </tr>
-          </tbody>
-        </table>
+        <div style="overflow:auto; border-radius:14px; border:1px solid #eef0f6; background:#fff;">
+          <table style="width:100%; border-collapse:collapse; min-width:${Math.max(520, 130 + N*120)}px;">
+            <thead>
+              <tr>
+                <th style="padding:10px 8px; border-bottom:1px solid #eef0f6; text-align:left; color:#666; font-size:13px;">
+                  라운드
+                </th>
+                ${headerCells}
+              </tr>
+            </thead>
+            <tbody>
+              ${roundRows}
+              <tr style="background:#fafbff;">
+                <td style="padding:12px 8px; font-weight:1000; border-top:1px solid #eef0f6;">
+                  총점
+                </td>
+                ${totalCells}
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  `;
-}
+    `;
+  }
 
   function escapeHtml(str){
     return (str ?? "")
