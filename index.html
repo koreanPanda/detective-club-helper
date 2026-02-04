@@ -924,7 +924,7 @@
     const currentVoterId=voters[state.voteCursor];
 
     // ✅ UI에 보이는 타겟(타일) 순서는 항상 1..N 고정 (단, 자기 자신 제외)
-    const targets = Array.from({length: state.N}, (_,i)=>i+1).filter(id => id !== currentVoterId);
+    const targets = Array.from({length: state.N}, (_,i)=>i+1); // ✅ 전원 표시 (순서 고정)
 
     $app.innerHTML=`
       <div class="card">
@@ -952,9 +952,10 @@
     `;
 
     const tiles=document.getElementById("tiles");
-    tiles.innerHTML=targets.map(tid=>{
+    tiles.innerHTML = targets.map(tid=>{
+      const disabled = (tid === currentVoterId) || (tid === state.hostId); // ✅ 자기+제시자 비활성
       return `
-        <div class="tile" data-target="${tid}">
+        <div class="tile ${disabled ? "disabled" : ""}" data-target="${tid}" data-disabled="${disabled ? "1":"0"}">
           <div class="tileTitle">${pmarkHTML(tid,true)}</div>
           <div class="tileSub">${tid}번</div>
           ${state.mode==="FULL" ? `<div class="tileHoldBarWrap"><div class="tileHoldBar"></div></div>` : ``}
@@ -971,10 +972,15 @@
 
     document.querySelectorAll(".tile[data-target]").forEach(tile=>{
       const tid=parseInt(tile.getAttribute("data-target"),10);
-
+      const disabled = (tile.getAttribute("data-disabled") === "1");
+      
       if(state.mode==="LITE"){
         tile.addEventListener("click",(e)=>{
           e.preventDefault(); clearTextSelection();
+          if(disabled){
+            toast(tid === state.hostId ? "제시자는 지목할 수 없어요." : "자기 자신은 지목할 수 없어요.");
+            return;
+          }
           registerVote(currentVoterId, tid);
           state.voteCursor+=1; save();
           haptic(12);
@@ -1009,15 +1015,21 @@
           raf=requestAnimationFrame(update);
         }
       };
-
+      const disabled = (tile.getAttribute("data-disabled") === "1");
+      
       const start=(e)=>{
         if(e.cancelable) e.preventDefault();
         clearTextSelection();
+      
+        if(disabled){
+          toast(tid === state.hostId ? "제시자는 지목할 수 없어요." : "자기 자신은 지목할 수 없어요.");
+          return;
+        }
         if(completed) return;
-
+      
         document.querySelectorAll(".tile.selected").forEach(x=>x.classList.remove("selected"));
         tile.classList.add("selected");
-
+      
         holding=true; startedAt=performance.now(); completed=false;
         resetBar();
         raf=requestAnimationFrame(update);
