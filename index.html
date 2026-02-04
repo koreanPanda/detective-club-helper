@@ -759,7 +759,7 @@
           <span class="pill">제시자: ${pmarkHTML(state.hostId)}</span>
         </div>
 
-        <p class="muted">제시어를 입력하세요. (라이어는 랜덤, 제시자는 모름)</p>
+        <p class="muted">제시어를 입력하세요. (라이어는 랜덤으로 지정, 제시자는 라이어가 한명 이하의 지목을 받아야 점수 획득)</p>
         <p class="muted">※ 제시자에게만 보임 · 현재 누적 점수: <b>${hostScore}</b></p>
 
         <label>제시자</label>
@@ -900,7 +900,7 @@
 
         <div class="rouletteBox" style="background:#fff;color:#111;border:1px solid #eef0f6;">
           <div style="font-weight:1000; font-size:20px;">“${escapeHtml(state.keyword)}”</div>
-          <div class="muted" style="margin-top:6px;">※ 라이어는 제시어를 모릅니다</div>
+          <div class="muted" style="margin-top:6px;">※ 라이어는 제시어를 모르고 카드를 내려놓았습니다.</div>
         </div>
 
         <button class="btn" id="startVote">지목 시작</button>
