@@ -911,73 +911,74 @@
     document.getElementById("back").onclick=()=>setPhase("PLAY_START");
   }
 
-  function renderVoting(){
+ function renderVoting(){
     const voters=state.voteOrder||[];
     const total=voters.length;
-
+  
     if(state.voteCursor>=total){
       applyScoring();
       setPhase("RESULT_ROULETTE");
       return;
     }
-
+  
     const currentVoterId=voters[state.voteCursor];
-
-    // ✅ UI에 보이는 타겟(타일) 순서는 항상 1..N 고정 (단, 자기 자신 제외)
-    const targets = Array.from({length: state.N}, (_,i)=>i+1); // ✅ 전원 표시 (순서 고정)
-
+  
+    // ✅ UI에 보이는 타겟(타일) 순서는 항상 1..N 고정 (전원 표시)
+    const targets = Array.from({length: state.N}, (_,i)=>i+1);
+  
     $app.innerHTML=`
       <div class="card">
         <div class="row">
           <h1>라이어 지목</h1>
           <span class="pill">${state.voteCursor+1} / ${total}</span>
         </div>
-
+  
         <p class="center" style="font-size:22px; font-weight:1000; margin:10px 0 6px;">지금 차례: ${pmarkHTML(currentVoterId)}</p>
-
+  
         ${state.mode==="FULL"
           ? `<p class="center muted">아래에서 라이어라고 생각하는 사람을 <b>0.5초간 꾹</b> 눌러 확정하세요.</p>
              <div class="tileHoldHint">짧게 탭하면 선택만 되고, 0.5초 꾹 눌러야 확정됩니다.</div>`
           : `<p class="center muted">아래에서 라이어라고 생각하는 사람을 <b>터치</b>해서 선택하세요.</p>
              <div class="tileHoldHint">실수하면 “이번 차례 되돌리기”로 복구 가능합니다.</div>`
         }
-
+  
         <div class="tiles" id="tiles"></div>
-
+  
         <div class="divider"></div>
-
+  
         <button class="btn secondary" id="undo">이번 차례 되돌리기</button>
         <button class="btn secondary" id="cancel">취소(라운드로)</button>
       </div>
     `;
-
+  
     const tiles=document.getElementById("tiles");
     tiles.innerHTML = targets.map(tid=>{
-      const disabled = (tid === currentVoterId) || (tid === state.hostId); // ✅ 자기+제시자 비활성
+      const isDisabled = (tid === currentVoterId) || (tid === state.hostId); // ✅ 자기 + 제시자 비활성
       return `
-        <div class="tile ${disabled ? "disabled" : ""}" data-target="${tid}" data-disabled="${disabled ? "1":"0"}">
+        <div class="tile ${isDisabled ? "disabled" : ""}" data-target="${tid}" data-disabled="${isDisabled ? "1":"0"}">
           <div class="tileTitle">${pmarkHTML(tid,true)}</div>
           <div class="tileSub">${tid}번</div>
           ${state.mode==="FULL" ? `<div class="tileHoldBarWrap"><div class="tileHoldBar"></div></div>` : ``}
         </div>
       `;
     }).join("");
-
+  
     document.querySelectorAll(".tile").forEach(el=>{
       el.setAttribute("draggable","false");
       el.addEventListener("contextmenu",(e)=>e.preventDefault());
       el.addEventListener("selectstart",(e)=>e.preventDefault());
       el.addEventListener("dragstart",(e)=>e.preventDefault());
     });
-
+  
     document.querySelectorAll(".tile[data-target]").forEach(tile=>{
       const tid=parseInt(tile.getAttribute("data-target"),10);
-      const disabled = (tile.getAttribute("data-disabled") === "1");
-      
+      const isDisabled = (tile.getAttribute("data-disabled") === "1");
+  
+      // ---- LITE: 탭으로 즉시 확정 ----
       if(state.mode==="LITE"){
         tile.addEventListener("click",(e)=>{
           e.preventDefault(); clearTextSelection();
-          if(disabled){
+          if(isDisabled){
             toast(tid === state.hostId ? "제시자는 지목할 수 없어요." : "자기 자신은 지목할 수 없어요.");
             return;
           }
@@ -988,11 +989,12 @@
         }, {passive:false});
         return;
       }
-
+  
+      // ---- FULL: 0.5초 롱프레스 확정 ----
       const bar=tile.querySelector(".tileHoldBar");
       let holding=false, startedAt=0, raf=null, completed=false;
       const resetBar=()=>{ if(bar) bar.style.width="0%"; };
-
+  
       const update=()=>{
         if(!holding) return;
         const elapsed=performance.now()-startedAt;
@@ -1001,10 +1003,10 @@
         if(p>=1 && !completed){
           completed=true; holding=false;
           if(raf) cancelAnimationFrame(raf);
-
+  
           tile.classList.add("popping");
           haptic(18);
-
+  
           setTimeout(()=>{
             tile.classList.remove("popping");
             registerVote(currentVoterId, tid);
@@ -1015,25 +1017,25 @@
           raf=requestAnimationFrame(update);
         }
       };
-      const disabled = (tile.getAttribute("data-disabled") === "1");
-      
+  
       const start=(e)=>{
         if(e.cancelable) e.preventDefault();
         clearTextSelection();
-      
-        if(disabled){
+  
+        if(isDisabled){
           toast(tid === state.hostId ? "제시자는 지목할 수 없어요." : "자기 자신은 지목할 수 없어요.");
           return;
         }
         if(completed) return;
-      
+  
         document.querySelectorAll(".tile.selected").forEach(x=>x.classList.remove("selected"));
         tile.classList.add("selected");
-      
+  
         holding=true; startedAt=performance.now(); completed=false;
         resetBar();
         raf=requestAnimationFrame(update);
       };
+  
       const end=(e)=>{
         if(e.cancelable) e.preventDefault();
         clearTextSelection();
@@ -1042,13 +1044,13 @@
         if(raf) cancelAnimationFrame(raf);
         if(!completed) resetBar();
       };
-
+  
       tile.addEventListener("pointerdown", start, {passive:false});
       tile.addEventListener("pointerup", end, {passive:false});
       tile.addEventListener("pointercancel", end, {passive:false});
       tile.addEventListener("pointerleave", end, {passive:false});
     });
-
+  
     document.getElementById("undo").onclick=()=>{
       if(state.voteCursor<=0){ toast("되돌릴 차례가 없어요."); return; }
       const prevVoterId=voters[state.voteCursor-1];
@@ -1058,7 +1060,7 @@
       toast("한 차례 되돌렸어요.");
       render();
     };
-
+  
     document.getElementById("cancel").onclick=()=>{
       if(confirm("지목을 취소하고 라운드 화면으로 돌아갈까요? (지목 진행은 초기화됩니다)")){
         state.votes={}; state.accusations={}; state.voteOrder=[]; state.voteCursor=0;
@@ -1066,6 +1068,7 @@
       }
     };
   }
+
 
   function renderResultRoulette(){
     $app.innerHTML=`
